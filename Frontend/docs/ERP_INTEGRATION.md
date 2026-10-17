@@ -1,6 +1,6 @@
-# Adadiko Next — Frappe & ERPNext v16 Integration Specification
+# Adadiko Hub — Frappe & ERPNext v16 Integration Specification
 
-This document maps all user interface screens in Adadiko Next to their corresponding Frappe / ERPNext v16 DocTypes, whitelisted API endpoints, server-side authorization enforcement rules, and current mock adapter status.
+This document maps all user interface screens in Adadiko Hub to their corresponding Frappe / ERPNext v16 DocTypes, whitelisted API endpoints, server-side authorization enforcement rules, and current mock adapter status.
 
 ---
 

@@ -1,5 +1,5 @@
 /**
- * Adadiko Next Role & Permission Matrix
+ * Adadiko Hub Role & Permission Matrix
  *
  * NOTE: Frontend role checks only change what users SEE in the client UI.
  * Real security and authorization enforcement MUST be done by Frappe / ERPNext

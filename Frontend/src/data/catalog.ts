@@ -1,5 +1,5 @@
 /**
- * Adadiko Next Module Marketplace & Catalog Data
+ * Adadiko Hub Module Marketplace & Catalog Data
  */
 import type { ModuleProduct, ModuleKey } from '@/types'
 

@@ -21,7 +21,7 @@ const navLinks = [
     <!-- Top Announcement Bar -->
     <div class="bg-ink-navy text-white text-xs py-2 px-4 text-center font-medium flex items-center justify-center gap-2">
       <span class="w-1.5 h-1.5 rounded-full bg-signal" />
-      <span>Adadiko Next is engineered for seamless Frappe / ERPNext v16 enterprise integration.</span>
+      <span>Adadiko Hub is engineered for seamless Frappe / ERPNext v16 enterprise integration.</span>
       <RouterLink to="/demo" class="underline text-signal hover:text-white ml-1">
         Try Interactive Demo →
       </RouterLink>
@@ -37,7 +37,7 @@ const navLinks = [
           </div>
           <div class="flex flex-col">
             <span class="text-lg font-black tracking-tight text-ink font-heading leading-tight">
-              Adadiko <span class="text-signal">Next</span>
+              Adadiko <span class="text-signal">Hub</span>
             </span>
             <span class="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">
               Modular Business Suite
@@ -124,7 +124,7 @@ const navLinks = [
                 A
               </div>
               <span class="text-xl font-black text-white font-heading">
-                Adadiko Next
+                Adadiko Hub
               </span>
             </div>
             <p class="text-sm text-stone-bg/70 max-w-sm leading-relaxed">

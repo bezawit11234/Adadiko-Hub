@@ -1,5 +1,5 @@
 /**
- * Adadiko Next Core Types
+ * Adadiko Hub Core Types
  * Prepares the schema for Frappe / ERPNext v16 integration.
  */
 

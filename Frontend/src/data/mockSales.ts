@@ -1,5 +1,5 @@
 /**
- * Mock Data for Adadiko Next Sales Service
+ * Mock Data for Adadiko Hub Sales Service
  * Kept strictly inside the data/ layer. Never imported directly by UI screens.
  */
 

@@ -184,7 +184,7 @@ function triggerCommandPalette() {
               {{ currentOrg.name }}
             </span>
             <span class="text-[10px] text-stone-bg/50 uppercase tracking-wider font-semibold">
-              Adadiko Next • Frappe v16
+              Adadiko Hub • Frappe v16
             </span>
           </div>
         </RouterLink>

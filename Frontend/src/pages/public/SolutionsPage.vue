@@ -34,7 +34,7 @@ const industries = [
         Engineered for operational speed in physical commerce
       </h1>
       <p class="text-base text-ink-muted leading-relaxed">
-        Generic accounting packages force your business into stiff spreadsheets. Adadiko Next adapts to your actual order-to-cash velocity.
+        Generic accounting packages force your business into stiff spreadsheets. Adadiko Hub adapts to your actual order-to-cash velocity.
       </p>
     </div>
 

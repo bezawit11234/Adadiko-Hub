@@ -23,7 +23,7 @@ import { MODULE_CATALOG } from '@/data/catalog'
           </h1>
 
           <p class="text-lg text-ink-muted leading-relaxed max-w-2xl">
-            Adadiko Next lets organizations buy and run only what they need. Start with our fully equipped <strong>Sales Pipeline</strong> today; activate Inventory, Purchasing, and Finance when your team is ready.
+            Adadiko Hub lets organizations buy and run only what they need. Start with our fully equipped <strong>Sales Pipeline</strong> today; activate Inventory, Purchasing, and Finance when your team is ready.
           </p>
 
           <div class="flex flex-wrap items-center gap-3 pt-2">

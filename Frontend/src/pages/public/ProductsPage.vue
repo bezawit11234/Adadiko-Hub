@@ -29,7 +29,7 @@ function closeModal() {
         Enterprise Module Marketplace
       </h1>
       <p class="text-base text-ink-muted leading-relaxed">
-        Assemble a customized ERP tailored to your current scale. Each module runs seamlessly inside the unified Adadiko client workspace and synchronizes with your Frappe backend.
+        Assemble a customized ERP tailored to your current scale. Each module runs seamlessly inside the unified Adadiko Hub client workspace and synchronizes with your Frappe backend.
       </p>
     </div>
 

@@ -12,7 +12,7 @@ import SampleNotice from '@/components/common/SampleNotice.vue'
 
     <SectionHeading
       title="Help & Keyboard Shortcuts"
-      description="Quick reference for navigating your Adadiko Next workspace efficiently."
+      description="Quick reference for navigating your Adadiko Hub workspace efficiently."
     />
 
     <div class="bg-white rounded-3xl border border-stone-border shadow-soft p-6 sm:p-8 space-y-6">

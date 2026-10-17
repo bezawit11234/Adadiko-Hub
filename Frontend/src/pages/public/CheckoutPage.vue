@@ -107,7 +107,7 @@ function runProvisioningSimulation() {
     <div class="text-center space-y-2">
       <Badge variant="signal" size="sm">Workspace Provisioning</Badge>
       <h1 class="text-3xl font-black text-ink font-heading">
-        Set up your Adadiko Next workspace
+        Set up your Adadiko Hub workspace
       </h1>
       <p class="text-sm text-ink-muted">
         14-day free trial on dedicated Frappe v16 infrastructure. No immediate credit card charge.

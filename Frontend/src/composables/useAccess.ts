@@ -1,5 +1,5 @@
 /**
- * Adadiko Next Access Control Composable
+ * Adadiko Hub Access Control Composable
  *
  * NOTE: Frontend role checks only change what people SEE.
  * Real enforcement will be done by ERPNext permissions on the server

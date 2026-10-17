@@ -12,7 +12,7 @@ import CommandPalette from '@/components/layout/CommandPalette.vue'
           A
         </div>
         <span class="text-lg font-black tracking-tight text-ink font-heading">
-          Adadiko <span class="text-signal">Next</span>
+          Adadiko <span class="text-signal">Hub</span>
         </span>
       </RouterLink>
 

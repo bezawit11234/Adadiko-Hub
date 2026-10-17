@@ -37,7 +37,7 @@ const roleCards: { role: Role; icon: string; highlight: string }[] = [
     <div class="text-center max-w-2xl mx-auto space-y-3">
       <Badge variant="signal" size="sm">Evaluation Mode</Badge>
       <h1 class="text-3xl sm:text-4xl font-black text-ink font-heading tracking-tight">
-        Test Adadiko Next with Preloaded Roles
+        Test Adadiko Hub with Preloaded Roles
       </h1>
       <p class="text-sm text-ink-muted">
         Select any persona below to immediately launch the app shell with realistic sample data and role-based access rules.

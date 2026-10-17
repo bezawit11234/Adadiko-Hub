@@ -8,8 +8,8 @@ const searchQuery = ref('')
 
 const faqs = [
   {
-    q: 'How does Adadiko Next connect with ERPNext / Frappe v16?',
-    a: 'Adadiko Next screens interact strictly via our typed Service layer (SalesApi, AuthApi). In this mock phase, data is handled by in-memory reactive state. In the upcoming Frappe phase, FrappeSalesApi calls the ERPNext REST endpoints (like erpnext.selling.doctype.sales_order.sales_order.make_delivery_note).',
+    q: 'How does Adadiko Hub connect with ERPNext / Frappe v16?',
+    a: 'Adadiko Hub screens interact strictly via our typed Service layer (SalesApi, AuthApi). In this mock phase, data is handled by in-memory reactive state. In the upcoming Frappe phase, FrappeSalesApi calls the ERPNext REST endpoints (like erpnext.selling.doctype.sales_order.sales_order.make_delivery_note).',
   },
   {
     q: 'Can our company add modules after signing up?',
@@ -21,7 +21,7 @@ const faqs = [
   },
   {
     q: 'Why are plain words used instead of ERP jargon?',
-    a: 'Adadiko Next is designed for fast staff onboarding. Instead of "Accounts Receivable Aging Balance" we display "Customer owes", and instead of "Submit Stock Entry Dispatch" we display "Create delivery".',
+    a: 'Adadiko Hub is designed for fast staff onboarding. Instead of "Accounts Receivable Aging Balance" we display "Customer owes", and instead of "Submit Stock Entry Dispatch" we display "Create delivery".',
   },
 ]
 </script>
@@ -31,7 +31,7 @@ const faqs = [
     <div class="text-center space-y-3">
       <Badge variant="signal" size="sm">Knowledge Base</Badge>
       <h1 class="text-3xl sm:text-4xl font-black text-ink font-heading tracking-tight">
-        Adadiko Next Documentation & Help
+        Adadiko Hub Documentation & Help
       </h1>
       <p class="text-sm text-ink-muted">
         Everything you need to know about our modular business suite and Frappe integration.

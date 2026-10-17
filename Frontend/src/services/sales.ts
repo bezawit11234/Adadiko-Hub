@@ -1,5 +1,5 @@
 /**
- * Adadiko Next Sales Service Layer
+ * Adadiko Hub Sales Service Layer
  *
  * Implements the SalesApi interface with two adapters:
  * 1. MockSalesApi: In-memory reactive state with simulated micro-delays for instant testing.
