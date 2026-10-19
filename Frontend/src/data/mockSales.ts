@@ -88,10 +88,14 @@ export const MOCK_CUSTOMERS: Customer[] = [
 ]
 
 export const MOCK_CATALOG_ITEMS = [
+  { itemCode: 'CLOUD-HOST-1Y', itemName: 'Cloud Hosting 1Y', rate: 1200.0, stockAvailable: 99, warehouse: 'Stores - AHD' },
+  { itemCode: 'CONSULT-DAY', itemName: 'Consulting Day', rate: 800.0, stockAvailable: 99, warehouse: 'Stores - AHD' },
+  { itemCode: 'SUPP-GOLD', itemName: 'Support Plan Gold', rate: 600.0, stockAvailable: 99, warehouse: 'Stores - AHD' },
+  { itemCode: 'SUPP-SILVER', itemName: 'Support Plan Silver', rate: 300.0, stockAvailable: 99, warehouse: 'Stores - AHD' },
   { itemCode: 'ITEM-SOLAR-5KWH', itemName: '5kWh Lithium Solar Storage Unit', rate: 1850.0, stockAvailable: 14, warehouse: 'Main Store' },
-  { itemCode: 'ITEM-INV-3KW', itemName: 'Hybrid Solar Inverter 3.5kVA', rate: 620.0, stockAvailable: 3, warehouse: 'Main Store' }, // Stock warning test! Only 3 left
+  { itemCode: 'ITEM-INV-3KW', itemName: 'Hybrid Solar Inverter 3.5kVA', rate: 620.0, stockAvailable: 3, warehouse: 'Main Store' },
   { itemCode: 'ITEM-CABLE-4MM', itemName: 'Solar DC Double-Sheath Cable (100m Roll)', rate: 125.0, stockAvailable: 85, warehouse: 'Main Store' },
-  { itemCode: 'ITEM-RACK-6U', itemName: 'Reinforced Battery Cabinet 6U Enclosure', rate: 290.0, stockAvailable: 2, warehouse: 'Main Store' }, // Only 2 left
+  { itemCode: 'ITEM-RACK-6U', itemName: 'Reinforced Battery Cabinet 6U Enclosure', rate: 290.0, stockAvailable: 2, warehouse: 'Main Store' },
   { itemCode: 'ITEM-MONITOR-HUB', itemName: 'IoT Telemetry Gateway with 4G SIM', rate: 180.0, stockAvailable: 42, warehouse: 'Electronics Bay' },
 ]
 

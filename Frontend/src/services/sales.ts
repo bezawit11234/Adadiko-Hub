@@ -27,6 +27,15 @@ import {
   MOCK_APPROVALS,
   MOCK_SALES_SUMMARY,
 } from '@/data/mockSales'
+import { frappeFetch } from './frappeHttp'
+import {
+  mapCustomer,
+  mapQuotation,
+  mapSalesOrder,
+  mapDeliveryNote,
+  mapSalesInvoice,
+  mapApprovalRequest,
+} from './mappers'
 
 export interface SalesApi {
   listCustomers(query?: string): Promise<ApiResult<Customer[]>>
@@ -313,89 +322,328 @@ class MockSalesApi implements SalesApi {
  * Each method below documents the corresponding ERPNext DocType and Frappe method.
  */
 class FrappeSalesApi implements SalesApi {
-  // TODO: ERPNext Call: GET /api/resource/Customer?fields=["name","customer_name","email_id","mobile_no","territory","outstanding_amount"]
   async listCustomers(query?: string): Promise<ApiResult<Customer[]>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    const fields = encodeURIComponent(
+      JSON.stringify([
+        'name',
+        'customer_name',
+        'email_id',
+        'mobile_no',
+        'territory',
+        'customer_group',
+        'owner',
+        'creation',
+        'disabled',
+      ])
+    )
+    const res = await frappeFetch<any[]>(
+      `/api/resource/Customer?fields=${fields}&order_by=creation%20desc&limit_page_length=100`
+    )
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+
+    let list = res.data.map(mapCustomer)
+    if (query) {
+      const q = query.toLowerCase()
+      list = list.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.id.toLowerCase().includes(q) ||
+          c.email.toLowerCase().includes(q) ||
+          c.territory.toLowerCase().includes(q)
+      )
+    }
+    return { ok: true, data: list }
   }
 
-  // TODO: ERPNext Call: GET /api/resource/Customer/:id
   async getCustomer(id: string): Promise<ApiResult<Customer>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    const res = await frappeFetch<any>(`/api/resource/Customer/${encodeURIComponent(id)}`)
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+
+    const customer = mapCustomer(res.data)
+
+    // Calculate real outstanding balance from unpaid Sales Invoices
+    try {
+      const invFilters = encodeURIComponent(
+        JSON.stringify([
+          ['customer', '=', id],
+          ['docstatus', '=', 1],
+          ['outstanding_amount', '>', 0],
+        ])
+      )
+      const invRes = await frappeFetch<any[]>(
+        `/api/resource/Sales%20Invoice?filters=${invFilters}&fields=%5B%22outstanding_amount%22%5D&limit_page_length=100`
+      )
+      if (invRes.ok && Array.isArray(invRes.data)) {
+        customer.amountOwed = invRes.data.reduce(
+          (sum, inv) => sum + Number(inv.outstanding_amount || 0),
+          0
+        )
+      }
+    } catch {
+      // non-fatal
+    }
+
+    return { ok: true, data: customer }
   }
 
-  // TODO: ERPNext Call: POST /api/resource/Customer
   async createCustomer(payload: Omit<Customer, 'id' | 'createdDate'>): Promise<ApiResult<Customer>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    const res = await frappeFetch<any>('/api/resource/Customer', {
+      method: 'POST',
+      body: JSON.stringify({
+        customer_name: payload.name,
+        customer_type: 'Company',
+        customer_group: payload.group || 'Commercial',
+        territory: payload.territory || 'All Territories',
+        email_id: payload.email,
+        mobile_no: payload.phone,
+      }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: mapCustomer(res.data) }
   }
 
-  // TODO: ERPNext Call: GET /api/resource/Quotation
   async listQuotations(): Promise<ApiResult<Quotation[]>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    const fields = encodeURIComponent(
+      JSON.stringify([
+        'name',
+        'party_name',
+        'customer_name',
+        'transaction_date',
+        'valid_till',
+        'net_total',
+        'total_taxes_and_charges',
+        'grand_total',
+        'status',
+        'owner',
+        'docstatus',
+      ])
+    )
+    const res = await frappeFetch<any[]>(
+      `/api/resource/Quotation?fields=${fields}&order_by=creation%20desc&limit_page_length=100`
+    )
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: res.data.map(mapQuotation) }
   }
 
-  // TODO: ERPNext Call: POST /api/resource/Quotation
   async createQuotation(payload: Omit<Quotation, 'id'>): Promise<ApiResult<Quotation>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    const docItems = payload.items.map((i) => ({
+      item_code: i.itemCode,
+      qty: i.qty,
+      rate: i.rate,
+    }))
+    const res = await frappeFetch<any>('/api/resource/Quotation', {
+      method: 'POST',
+      body: JSON.stringify({
+        quotation_to: 'Customer',
+        party_name: payload.customerId || payload.customerName,
+        transaction_date: payload.date || new Date().toISOString().split('T')[0],
+        valid_till: payload.validTill,
+        items: docItems,
+      }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: mapQuotation(res.data) }
   }
 
-  // TODO: ERPNext Call: GET /api/resource/Sales Order
   async listSalesOrders(): Promise<ApiResult<SalesOrder[]>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    const fields = encodeURIComponent(
+      JSON.stringify([
+        'name',
+        'customer',
+        'customer_name',
+        'transaction_date',
+        'delivery_date',
+        'net_total',
+        'total_taxes_and_charges',
+        'grand_total',
+        'status',
+        'delivery_status',
+        'billing_status',
+        'owner',
+        'docstatus',
+      ])
+    )
+    const res = await frappeFetch<any[]>(
+      `/api/resource/Sales%20Order?fields=${fields}&order_by=creation%20desc&limit_page_length=100`
+    )
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: res.data.map(mapSalesOrder) }
   }
 
-  // TODO: ERPNext Call: GET /api/resource/Sales Order/:id
   async getSalesOrder(id: string): Promise<ApiResult<SalesOrder>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    const res = await frappeFetch<any>(`/api/resource/Sales%20Order/${encodeURIComponent(id)}`)
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    const order = mapSalesOrder(res.data)
+
+    // Lookup linked Sales Invoice if any
+    try {
+      const invRes = await frappeFetch<any[]>(
+        `/api/resource/Sales%20Invoice?filters=%5B%5B%22Sales%20Invoice%20Item%22%2C%22sales_order%22%2C%22%3D%22%2C%22${encodeURIComponent(id)}%22%5D%5D&fields=%5B%22name%22%5D&limit=1`
+      )
+      if (invRes.ok && invRes.data && invRes.data.length > 0) {
+        order.invoiceId = invRes.data[0].name
+      }
+    } catch {
+      // non-fatal
+    }
+
+    return { ok: true, data: order }
   }
 
-  // TODO: ERPNext Call: POST /api/resource/Sales Order
-  async createSalesOrder(payload: Omit<SalesOrder, 'id' | 'stage' | 'status' | 'deliveryStatus' | 'billingStatus'>): Promise<ApiResult<SalesOrder>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+
+  async createSalesOrder(
+    payload: Omit<SalesOrder, 'id' | 'stage' | 'status' | 'deliveryStatus' | 'billingStatus'>
+  ): Promise<ApiResult<SalesOrder>> {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.create_sales_order', {
+      method: 'POST',
+      body: JSON.stringify({
+        customer: payload.customerId || payload.customerName,
+        delivery_date: payload.deliveryDate,
+        items: payload.items,
+        submit: false,
+      }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: mapSalesOrder(res.data) }
   }
 
-  // TODO: ERPNext Call: POST /api/method/erpnext.selling.doctype.sales_order.sales_order.make_delivery_note
   async createDelivery(salesOrderId: string): Promise<ApiResult<DeliveryNote>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.create_delivery_from_order', {
+      method: 'POST',
+      body: JSON.stringify({ sales_order_id: salesOrderId }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: mapDeliveryNote(res.data) }
   }
 
-  // TODO: ERPNext Call: GET /api/resource/Delivery Note
   async listDeliveries(): Promise<ApiResult<DeliveryNote[]>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    const fields = encodeURIComponent(
+      JSON.stringify([
+        'name',
+        'customer',
+        'customer_name',
+        'posting_date',
+        'status',
+        'grand_total',
+        'owner',
+        'docstatus',
+        'against_sales_order',
+      ])
+    )
+    const res = await frappeFetch<any[]>(
+      `/api/resource/Delivery%20Note?fields=${fields}&order_by=creation%20desc&limit_page_length=100`
+    )
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: res.data.map(mapDeliveryNote) }
   }
 
-  // TODO: ERPNext Call: POST /api/method/erpnext.selling.doctype.sales_order.sales_order.make_sales_invoice
   async createInvoiceFromOrder(salesOrderId: string): Promise<ApiResult<SalesInvoice>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.create_invoice_from_order', {
+      method: 'POST',
+      body: JSON.stringify({ sales_order_id: salesOrderId }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: mapSalesInvoice(res.data) }
   }
 
-  // TODO: ERPNext Call: GET /api/resource/Sales Invoice
   async listSalesInvoices(): Promise<ApiResult<SalesInvoice[]>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    const fields = encodeURIComponent(
+      JSON.stringify([
+        'name',
+        'customer',
+        'customer_name',
+        'posting_date',
+        'due_date',
+        'grand_total',
+        'outstanding_amount',
+        'status',
+        'owner',
+        'docstatus',
+        'against_sales_order',
+      ])
+    )
+    const res = await frappeFetch<any[]>(
+      `/api/resource/Sales%20Invoice?fields=${fields}&order_by=creation%20desc&limit_page_length=100`
+    )
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: res.data.map(mapSalesInvoice) }
   }
 
-  // TODO: ERPNext Call: GET /api/resource/Sales Invoice/:id
   async getSalesInvoice(id: string): Promise<ApiResult<SalesInvoice>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    const res = await frappeFetch<any>(`/api/resource/Sales%20Invoice/${encodeURIComponent(id)}`)
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: mapSalesInvoice(res.data) }
   }
 
-  // TODO: ERPNext Call: POST /api/resource/Payment Entry
-  async recordPayment(invoiceId: string, amount: number, mode: string, referenceNo: string): Promise<ApiResult<Payment>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+  async recordPayment(
+    invoiceId: string,
+    amount: number,
+    mode: 'Bank Transfer' | 'Credit Card' | 'Cheque' | 'Cash',
+    referenceNo: string
+  ): Promise<ApiResult<Payment>> {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.record_payment_for_invoice', {
+      method: 'POST',
+      body: JSON.stringify({
+        invoice_id: invoiceId,
+        amount,
+        mode,
+        reference_no: referenceNo,
+      }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    const payment: Payment = {
+      id: res.data.name || `PAY-${Date.now()}`,
+      invoiceId,
+      customerName: res.data.party_name || '',
+      amount,
+      date: new Date().toISOString().split('T')[0],
+      modeOfPayment: mode,
+      referenceNo,
+      receivedBy: res.data.owner || 'Finance Desk',
+    }
+    return { ok: true, data: payment }
   }
 
-  // TODO: ERPNext Call: GET /api/method/erpnext.selling.doctype.sales_order.sales_order.get_sales_analytics
   async getSalesSummary(): Promise<ApiResult<SalesSummary>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    const res = await frappeFetch<SalesSummary>('/api/method/adadiko_hub.api.get_sales_summary')
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: res.data }
   }
 
-  // TODO: ERPNext Call: GET /api/resource/Workflow Action?filters=[["reference_doctype","=","Sales Order"]]
   async listApprovals(): Promise<ApiResult<ApprovalRequest[]>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    const res = await frappeFetch<any[]>('/api/method/adadiko_hub.api.list_approvals')
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: res.data.map(mapApprovalRequest) }
   }
 
-  // TODO: ERPNext Call: POST /api/method/frappe.model.workflow.apply_workflow
   async decideApproval(id: string, decision: 'Approved' | 'Rejected'): Promise<ApiResult<ApprovalRequest>> {
-    return { ok: false, error: 'Frappe integration pending backend configuration.' }
+    if (decision === 'Approved') {
+      const res = await frappeFetch<any>('/api/method/adadiko_hub.api.approve_sales_order', {
+        method: 'POST',
+        body: JSON.stringify({ order_id: id }),
+      })
+      if (!res.ok) return { ok: false, error: res.error }
+    } else {
+      const res = await frappeFetch<any>('/api/method/adadiko_hub.api.reject_sales_order', {
+        method: 'POST',
+        body: JSON.stringify({ order_id: id, reason: 'Rejected by sales manager' }),
+      })
+      if (!res.ok) return { ok: false, error: res.error }
+    }
+    return {
+      ok: true,
+      data: {
+        id,
+        documentType: 'Sales Order',
+        documentId: id,
+        customerName: '',
+        amount: 0,
+        requestedBy: '',
+        requestDate: new Date().toISOString().split('T')[0],
+        reason: decision === 'Approved' ? 'Order approved' : 'Order rejected',
+        status: decision,
+      },
+    }
   }
 }
 
@@ -407,9 +655,14 @@ const frappeApiInstance = new FrappeSalesApi()
  * Access adapter based on environment variable VITE_API_MODE (mock | frappe)
  */
 export function getSalesApi(): SalesApi {
-  const mode = import.meta.env.VITE_API_MODE
+  let mode = import.meta.env.VITE_API_MODE
+  if (typeof localStorage !== 'undefined') {
+    const stored = localStorage.getItem('adadiko_api_mode')
+    if (stored === 'mock' || stored === 'frappe') mode = stored
+  }
   if (mode === 'frappe') {
     return frappeApiInstance
   }
   return mockApiInstance
 }
+

@@ -292,9 +292,19 @@ const router = createRouter({
 // 1. Not signed in goes to /sign-in?next=...
 // 2. A role without access goes to /app/no-access
 // 3. A module the organization did not buy goes to /app/locked/:module
-router.beforeEach((to, _from, next) => {
-  const { isAuthenticated, currentRole, currentOrg } = useSession()
+router.beforeEach(async (to, _from, next) => {
+  const { isAuthenticated, currentRole, isSessionChecked, restoreSession } = useSession()
   const { canUseModule } = useAccess()
+
+  // On initial load or refresh, restore server session if in Frappe mode
+  if (!isSessionChecked.value) {
+    await restoreSession()
+  }
+
+  // If already logged in and navigating to sign-in, redirect to app workspace
+  if (to.path === '/sign-in' && isAuthenticated.value) {
+    return next({ path: '/app' })
+  }
 
   // Check auth requirement
   if (to.meta.requiresAuth && !isAuthenticated.value) {
@@ -319,5 +329,6 @@ router.beforeEach((to, _from, next) => {
 
   next()
 })
+
 
 export default router

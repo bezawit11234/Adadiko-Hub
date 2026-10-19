@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { getSalesApi } from '@/services/sales'
 import { useToast } from '@/composables/useToast'
+import { useSession } from '@/composables/useSession'
 import type { SalesSummary, ApprovalRequest } from '@/types'
 import StatCard from '@/components/common/StatCard.vue'
 import AppButton from '@/components/common/AppButton.vue'
@@ -15,10 +16,14 @@ import { formatCurrency } from '@/utils/format'
 
 const salesApi = getSalesApi()
 const toast = useToast()
+const { currentRole } = useSession()
+
+const canApprove = computed(() => currentRole.value === 'sales_manager' || currentRole.value === 'admin')
 
 const summary = ref<SalesSummary | null>(null)
 const approvals = ref<ApprovalRequest[]>([])
 const loading = ref(true)
+
 
 async function loadData() {
   loading.value = true
@@ -301,8 +306,8 @@ const areaPoints = computed(() => {
               Requested by: {{ appr.requestedBy }}
             </p>
 
-            <!-- Actions: Approve / Reject -->
-            <div class="flex items-center justify-end gap-2 pt-2 border-t border-stone-border/60">
+            <!-- Actions: Approve / Reject (Enabled for Sales Manager & Admin) -->
+            <div v-if="canApprove" class="flex items-center justify-end gap-2 pt-2 border-t border-stone-border/60">
               <AppButton variant="ghost" size="sm" @click="handleDecision(appr.id, 'Rejected')">
                 Reject
               </AppButton>
@@ -311,6 +316,10 @@ const areaPoints = computed(() => {
                 <span>Approve</span>
               </AppButton>
             </div>
+            <div v-else class="text-[11px] text-ink-muted italic text-right pt-2 border-t border-stone-border/60">
+              Approval restricted to Sales Manager
+            </div>
+
           </div>
         </div>
       </div>
