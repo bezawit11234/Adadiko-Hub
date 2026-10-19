@@ -1,13 +1,13 @@
-# Adadiko Next — User Journeys by Role (App Flow)
+# Adadiko Hub — User Journeys by Role (App Flow)
 
-This guide walks through the plain-language user experience for every persona in Adadiko Next, explaining what each user sees, how they do their daily work, and how the system supports them from start to finish.
+This guide walks through the plain-language user experience for every persona in Adadiko Hub, explaining what each user sees, how they do their daily work, and how the system supports them from start to finish.
 
 ---
 
 ## 1. New Company Founder / Buyer (Public Flow)
 
 1. **Marketplace Discovery (`/` and `/products`)**:
-   - The buyer visits Adadiko Next and explores the interactive Module Marketplace.
+   - The buyer visits Adadiko Hub and explores the interactive Module Marketplace.
    - They click **Sales & Customer Pipeline** to see its features, pricing (\$39/mo), and how it handles quotations, orders, deliveries, and customer balances.
    - They review other modules (Inventory, Purchasing, Finance) that can be activated later.
 2. **Pricing & Plan Customization (`/pricing` and `/checkout`)**:

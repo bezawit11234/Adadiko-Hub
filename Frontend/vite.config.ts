@@ -20,5 +20,12 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    proxy: {
+      // Forward every /api request to ERPNext so login cookies work
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        headers: { 'X-Frappe-Site-Name': 'development.localhost' },
+      },
+    },
   },
 })
