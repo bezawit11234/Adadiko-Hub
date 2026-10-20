@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-stone: #F4F1EC;
+    --border-stone: #E7E2D9;
+    --text-navy: #14283D;
+    --signal-orange: #F08A3C;
+    --signal-orange-hover: #DE782B;
+    --signal-orange-subtle: #FDF2E9;
+  }
+
+  html {
+    font-family: 'DM Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    color: #14283D;
+    background-color: #F4F1EC;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    min-height: 100vh;
+    background-color: #F4F1EC;
+    color: #14283D;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    letter-spacing: -0.02em;
+  }
+}
+
+.num-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Accessible focus styling */
+:focus-visible {
+  outline: 2px solid #F08A3C;
+  outline-offset: 2px;
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D8D2C6;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #B8B0A2;
+}
+
+/* Navigation active pill indicator */
+.nav-active-pill {
+  position: relative;
+}
+.nav-active-pill::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3.5px;
+  background-color: #F08A3C;
+  border-radius: 0 4px 4px 0;
+}
