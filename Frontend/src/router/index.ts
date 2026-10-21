@@ -97,7 +97,6 @@ const routes: RouteRecordRaw[] = [
           if (currentRole.value === 'sales_rep') return '/app/sales'
           if (currentRole.value === 'accountant') return '/app/sales/invoices'
           if (currentRole.value === 'storekeeper') return '/app/sales/deliveries'
-          if (currentRole.value === 'adadiko_staff') return '/admin'
           return '/app/sales/dashboard'
         },
       },
@@ -234,44 +233,8 @@ const routes: RouteRecordRaw[] = [
     ],
   },
 
-  // --- ADADIKO BACK OFFICE (/admin) ---
-  {
-    path: '/admin',
-    component: AppShell,
-    meta: { requiresAuth: true, allowedRoles: ['adadiko_staff', 'admin'] },
-    children: [
-      {
-        path: '',
-        name: 'admin-overview',
-        component: () => import('@/pages/admin/AdminOverviewPage.vue'),
-      },
-      {
-        path: 'clients',
-        name: 'admin-clients',
-        component: () => import('@/pages/admin/AdminClientsPage.vue'),
-      },
-      {
-        path: 'orders',
-        name: 'admin-orders',
-        component: () => import('@/pages/admin/AdminOrdersPage.vue'),
-      },
-      {
-        path: 'subscriptions',
-        name: 'admin-subscriptions',
-        component: () => import('@/pages/admin/AdminSubscriptionsPage.vue'),
-      },
-      {
-        path: 'catalog',
-        name: 'admin-catalog',
-        component: () => import('@/pages/admin/AdminCatalogPage.vue'),
-      },
-      {
-        path: 'logs',
-        name: 'admin-logs',
-        component: () => import('@/pages/admin/AdminLogsPage.vue'),
-      },
-    ],
-  },
+  { path: '/admin/:pathMatch(.*)*', redirect: '/app' },
+  { path: '/admin', redirect: '/app' },
 
   // Fallback 404
   {

@@ -7,12 +7,17 @@ import Badge from '@/components/common/Badge.vue'
 import SampleNotice from '@/components/common/SampleNotice.vue'
 import { formatCurrency, formatDate } from '@/utils/format'
 
-const subs = ref([
-  { id: 'SUB-101', orgName: 'Horizon Smart Solar Ltd', tier: 'Enterprise', cycle: 'Monthly', nextBillDate: '2026-04-01', mrr: 389.0, status: 'Active' },
-  { id: 'SUB-102', orgName: 'Apex Wholesale Ltd', tier: 'Growth', cycle: 'Monthly', nextBillDate: '2026-04-15', mrr: 119.0, status: 'Active' },
-  { id: 'SUB-103', orgName: 'Blue Nile Trading PLC', tier: 'Starter', cycle: 'Monthly', nextBillDate: '2026-04-28', mrr: 49.0, status: 'Active' },
-  { id: 'SUB-104', orgName: 'Sahara Grocers Cooperative', tier: 'Growth', cycle: 'Monthly', nextBillDate: '2026-04-01', mrr: 119.0, status: 'Trial' },
-])
+interface PlatformSubscription {
+  id: string
+  orgName: string
+  tier: string
+  cycle: string
+  nextBillDate: string
+  mrr: number
+  status: string
+}
+
+const subs = ref<PlatformSubscription[]>([])
 
 const columns: Column[] = [
   { key: 'id', label: 'Subscription #' },
@@ -38,7 +43,12 @@ const columns: Column[] = [
       </template>
     </SectionHeading>
 
-    <DataTable :columns="columns" :rows="subs">
+    <DataTable
+      :columns="columns"
+      :rows="subs"
+      empty-title="No active recurring subscriptions"
+      empty-description="Recurring client contracts and billing renewals will be displayed here."
+    >
       <template #id="{ value }">
         <span class="font-mono font-bold text-ink">{{ value }}</span>
       </template>

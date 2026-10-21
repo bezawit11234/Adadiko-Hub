@@ -62,16 +62,79 @@ export interface SalesApi {
   decideApproval(id: string, decision: 'Approved' | 'Rejected'): Promise<ApiResult<ApprovalRequest>>
 }
 
-// In-memory state for mock adapter
+const STORAGE_KEY_SALES = 'adadiko_mock_sales_store'
+
+interface MockSalesState {
+  customers: Customer[]
+  quotations: Quotation[]
+  orders: SalesOrder[]
+  deliveries: DeliveryNote[]
+  invoices: SalesInvoice[]
+  payments: Payment[]
+  approvals: ApprovalRequest[]
+  summary: SalesSummary
+}
+
+function getInitialMockState(): MockSalesState {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_SALES)
+      if (raw) return JSON.parse(raw)
+    } catch {
+      // fallback
+    }
+  }
+  return {
+    customers: [],
+    quotations: [],
+    orders: [],
+    deliveries: [],
+    invoices: [],
+    payments: [],
+    approvals: [],
+    summary: {
+      salesToday: 0.0,
+      salesThisMonth: 0.0,
+      salesMonthTarget: 0.0,
+      openOrdersCount: 0,
+      openOrdersValue: 0.0,
+      unpaidInvoicesCount: 0,
+      unpaidInvoicesTotal: 0.0,
+      pipelineCounts: {
+        quotations: 0,
+        orders: 0,
+        delivered: 0,
+        invoiced: 0,
+        paid: 0,
+      },
+      recentOrdersOverTime: [],
+      teamPerformance: [],
+    },
+  }
+}
+
+// In-memory state for mock adapter, starts EMPTY and saves to browser storage
 class MockSalesApi implements SalesApi {
-  private customers = [...MOCK_CUSTOMERS]
-  private quotations = [...MOCK_QUOTATIONS]
-  private orders = [...MOCK_SALES_ORDERS]
-  private deliveries = [...MOCK_DELIVERIES]
-  private invoices = [...MOCK_INVOICES]
-  private payments = [...MOCK_PAYMENTS]
-  private approvals = [...MOCK_APPROVALS]
-  private summary = { ...MOCK_SALES_SUMMARY }
+  private state: MockSalesState = getInitialMockState()
+
+  private get customers() { return this.state.customers }
+  private get quotations() { return this.state.quotations }
+  private get orders() { return this.state.orders }
+  private get deliveries() { return this.state.deliveries }
+  private get invoices() { return this.state.invoices }
+  private get payments() { return this.state.payments }
+  private get approvals() { return this.state.approvals }
+  private get summary() { return this.state.summary }
+
+  private saveState(): void {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY_SALES, JSON.stringify(this.state))
+      } catch {
+        // ignore
+      }
+    }
+  }
 
   private async delay(ms = 80): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms))
@@ -108,6 +171,7 @@ class MockSalesApi implements SalesApi {
       amountOwed: 0,
     }
     this.customers.unshift(newCustomer)
+    this.saveState()
     return { ok: true, data: newCustomer }
   }
 
@@ -124,6 +188,7 @@ class MockSalesApi implements SalesApi {
     }
     this.quotations.unshift(newQuotation)
     this.summary.pipelineCounts.quotations++
+    this.saveState()
     return { ok: true, data: newQuotation }
   }
 
@@ -155,6 +220,7 @@ class MockSalesApi implements SalesApi {
     this.summary.openOrdersCount++
     this.summary.openOrdersValue += newOrder.grandTotal
     this.summary.pipelineCounts.orders++
+    this.saveState()
     return { ok: true, data: newOrder }
   }
 
@@ -181,6 +247,7 @@ class MockSalesApi implements SalesApi {
     order.stage = 'Invoice'
     order.status = 'To Bill'
     this.summary.pipelineCounts.delivered++
+    this.saveState()
 
     return { ok: true, data: newDelivery }
   }
@@ -228,6 +295,7 @@ class MockSalesApi implements SalesApi {
     this.summary.unpaidInvoicesCount++
     this.summary.unpaidInvoicesTotal += order.grandTotal
     this.summary.pipelineCounts.invoiced++
+    this.saveState()
 
     return { ok: true, data: newInvoice }
   }
@@ -292,6 +360,7 @@ class MockSalesApi implements SalesApi {
 
     this.summary.salesToday += amount
     this.summary.salesThisMonth += amount
+    this.saveState()
 
     return { ok: true, data: payment }
   }
@@ -311,6 +380,7 @@ class MockSalesApi implements SalesApi {
     const found = this.approvals.find((a) => a.id === id)
     if (!found) return { ok: false, error: `Approval ${id} not found.` }
     found.status = decision
+    this.saveState()
     return { ok: true, data: { ...found } }
   }
 }

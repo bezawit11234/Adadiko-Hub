@@ -9,6 +9,7 @@ import AppIcon from '@/components/common/AppIcon.vue'
 import Badge from '@/components/common/Badge.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import SampleNotice from '@/components/common/SampleNotice.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import Modal from '@/components/common/Modal.vue'
 import Field from '@/components/common/Field.vue'
 import TextField from '@/components/common/TextField.vue'
@@ -196,6 +197,23 @@ async function handleRecordPayment() {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Empty State if invoice not found -->
+    <div v-else-if="!loading" class="bg-white rounded-3xl border border-stone-border shadow-soft p-12 text-center">
+      <EmptyState
+        title="Sales invoice not found"
+        description="The requested sales invoice does not exist in this workspace or has been removed."
+      >
+        <template #action>
+          <RouterLink to="/app/sales/invoices">
+            <AppButton variant="primary" size="sm">
+              <AppIcon name="invoices" :size="16" />
+              <span>Back to Invoices</span>
+            </AppButton>
+          </RouterLink>
+        </template>
+      </EmptyState>
     </div>
 
     <!-- Record Payment Modal -->

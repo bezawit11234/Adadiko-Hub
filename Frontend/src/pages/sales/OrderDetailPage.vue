@@ -10,6 +10,7 @@ import Badge from '@/components/common/Badge.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import StepTracker from '@/components/common/StepTracker.vue'
 import SampleNotice from '@/components/common/SampleNotice.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import Modal from '@/components/common/Modal.vue'
 import Field from '@/components/common/Field.vue'
 import TextField from '@/components/common/TextField.vue'
@@ -332,6 +333,23 @@ async function handleRecordPayment() {
           <p v-else class="text-xs text-ink-muted">No invoice generated yet.</p>
         </div>
       </div>
+    </div>
+
+    <!-- Empty State if order not found -->
+    <div v-else-if="!loading" class="bg-white rounded-3xl border border-stone-border shadow-soft p-12 text-center">
+      <EmptyState
+        title="Sales order not found"
+        description="The requested order does not exist in this workspace or has been removed."
+      >
+        <template #action>
+          <RouterLink to="/app/sales/orders">
+            <AppButton variant="primary" size="sm">
+              <AppIcon name="orders" :size="16" />
+              <span>Back to Sales Orders</span>
+            </AppButton>
+          </RouterLink>
+        </template>
+      </EmptyState>
     </div>
 
     <!-- Record Payment Modal -->

@@ -2,9 +2,7 @@
 import { ref } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useSession } from '@/composables/useSession'
-import { getAuthApi } from '@/services/auth'
-import { DEMO_USERS, ROLE_DEFINITIONS } from '@/data/roles'
-import type { Role } from '@/types'
+import { ROLE_DEFINITIONS } from '@/data/roles'
 import AppButton from '@/components/common/AppButton.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import Field from '@/components/common/Field.vue'
@@ -12,43 +10,35 @@ import TextField from '@/components/common/TextField.vue'
 
 const router = useRouter()
 const route = useRoute()
-const { setUser, apiMode, setApiMode } = useSession()
-const authApi = getAuthApi()
+const { signIn, apiMode, setApiMode } = useSession()
 
-// Default credentials based on API mode
-const email = ref(apiMode.value === 'frappe' ? 'sales.manager@example.com' : 'sarah.mgr@adadiko.demo')
-const password = ref(apiMode.value === 'frappe' ? 'Test@12345' : '••••••••')
+const email = ref('')
+const password = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
 
 async function handleSignIn() {
+  if (!email.value.trim() || !password.value) {
+    errorMessage.value = 'Enter the work email and password you created when you set up the workspace.'
+    return
+  }
+
   loading.value = true
   errorMessage.value = ''
   try {
-    const res = await authApi.signIn(email.value, password.value)
+    const res = await signIn(email.value.trim(), password.value)
     if (res.ok && res.data) {
-      setUser(res.data)
-      const nextUrl = (route.query.next as string) || (res.data.role === 'adadiko_staff' ? '/admin' : ROLE_DEFINITIONS[res.data.role]?.defaultHome || '/app/sales/dashboard')
+      const nextUrl =
+        (route.query.next as string) ||
+        ROLE_DEFINITIONS[res.data.role]?.defaultHome ||
+        '/app/sales/dashboard'
       router.push(nextUrl)
     } else {
-      errorMessage.value = res.error || 'Failed to sign in. Please verify credentials.'
+      errorMessage.value = res.error || 'Could not sign in. Check your email and password.'
     }
   } finally {
     loading.value = false
   }
-}
-
-function quickDemoSignIn(role: Role) {
-  const user = DEMO_USERS[role]
-  setUser(user)
-  const nextUrl = (route.query.next as string) || (role === 'adadiko_staff' ? '/admin' : ROLE_DEFINITIONS[role].defaultHome)
-  router.push(nextUrl)
-}
-
-function fillFrappeUser(usr: string, pwd = 'Test@12345') {
-  email.value = usr
-  password.value = pwd
-  errorMessage.value = ''
 }
 </script>
 
@@ -86,7 +76,7 @@ function fillFrappeUser(usr: string, pwd = 'Test@12345') {
       </h2>
       <p class="text-xs text-ink-muted">
         <span v-if="apiMode === 'frappe'">Connected to Frappe / ERPNext v16 backend.</span>
-        <span v-else>Running in evaluation mode with reactive mock database.</span>
+        <span v-else>Sign in with your workspace credentials.</span>
       </p>
     </div>
 
@@ -118,119 +108,10 @@ function fillFrappeUser(usr: string, pwd = 'Test@12345') {
       </AppButton>
     </form>
 
-    <!-- IN FRAPPE MODE: Test Accounts Presets (fills form, does not bypass backend auth) -->
-    <div v-if="apiMode === 'frappe'" class="pt-4 border-t border-stone-border space-y-3">
-      <div class="flex items-center justify-between">
-        <span class="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
-          ERPNext Test Accounts:
-        </span>
-        <span class="text-[10px] text-ink-light">Password: Test@12345</span>
-      </div>
-
-      <div class="grid grid-cols-2 gap-2 text-xs">
-        <button
-          type="button"
-          class="p-2.5 rounded-xl border transition-all text-left flex flex-col gap-0.5"
-          :class="email === 'sales.manager@example.com' ? 'bg-signal-subtle border-signal/40 text-signal' : 'bg-stone-bg hover:bg-stone-muted border-stone-border text-ink'"
-          @click="fillFrappeUser('sales.manager@example.com')"
-        >
-          <span class="font-bold">Sales Manager</span>
-          <span class="text-[10px] text-ink-muted font-mono truncate">sales.manager@example.com</span>
-        </button>
-
-        <button
-          type="button"
-          class="p-2.5 rounded-xl border transition-all text-left flex flex-col gap-0.5"
-          :class="email === 'sales.rep@example.com' ? 'bg-signal-subtle border-signal/40 text-signal' : 'bg-stone-bg hover:bg-stone-muted border-stone-border text-ink'"
-          @click="fillFrappeUser('sales.rep@example.com')"
-        >
-          <span class="font-bold">Sales Rep</span>
-          <span class="text-[10px] text-ink-muted font-mono truncate">sales.rep@example.com</span>
-        </button>
-
-        <button
-          type="button"
-          class="p-2.5 rounded-xl border transition-all text-left flex flex-col gap-0.5"
-          :class="email === 'store@example.com' ? 'bg-signal-subtle border-signal/40 text-signal' : 'bg-stone-bg hover:bg-stone-muted border-stone-border text-ink'"
-          @click="fillFrappeUser('store@example.com')"
-        >
-          <span class="font-bold">Storekeeper</span>
-          <span class="text-[10px] text-ink-muted font-mono truncate">store@example.com</span>
-        </button>
-
-        <button
-          type="button"
-          class="p-2.5 rounded-xl border transition-all text-left flex flex-col gap-0.5"
-          :class="email === 'accounts@example.com' ? 'bg-signal-subtle border-signal/40 text-signal' : 'bg-stone-bg hover:bg-stone-muted border-stone-border text-ink'"
-          @click="fillFrappeUser('accounts@example.com')"
-        >
-          <span class="font-bold">Accountant</span>
-          <span class="text-[10px] text-ink-muted font-mono truncate">accounts@example.com</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- IN MOCK MODE: 1-Click Instant Demo Logins -->
-    <div v-else class="pt-4 border-t border-stone-border space-y-3">
-      <div class="flex items-center justify-between">
-        <span class="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
-          Instant Demo Logins:
-        </span>
-        <span class="text-[10px] text-signal font-semibold">1-Click</span>
-      </div>
-
-      <div class="grid grid-cols-2 gap-2 text-xs">
-        <button
-          type="button"
-          class="p-2 rounded-xl bg-stone-bg hover:bg-stone-muted border border-stone-border text-left transition-colors flex items-center justify-between"
-          @click="quickDemoSignIn('sales_rep')"
-        >
-          <span class="font-medium text-ink">Sales Rep</span>
-          <span class="text-[10px] text-ink-light">Tariq</span>
-        </button>
-
-        <button
-          type="button"
-          class="p-2 rounded-xl bg-signal-subtle/50 hover:bg-signal-subtle border border-signal/20 text-left transition-colors flex items-center justify-between text-signal"
-          @click="quickDemoSignIn('sales_manager')"
-        >
-          <span class="font-bold">Sales Manager</span>
-          <span class="text-[10px]">Sarah</span>
-        </button>
-
-        <button
-          type="button"
-          class="p-2 rounded-xl bg-stone-bg hover:bg-stone-muted border border-stone-border text-left transition-colors flex items-center justify-between"
-          @click="quickDemoSignIn('accountant')"
-        >
-          <span class="font-medium text-ink">Accountant</span>
-          <span class="text-[10px] text-ink-light">Fiona</span>
-        </button>
-
-        <button
-          type="button"
-          class="p-2 rounded-xl bg-stone-bg hover:bg-stone-muted border border-stone-border text-left transition-colors flex items-center justify-between"
-          @click="quickDemoSignIn('storekeeper')"
-        >
-          <span class="font-medium text-ink">Storekeeper</span>
-          <span class="text-[10px] text-ink-light">Kwame</span>
-        </button>
-      </div>
-
-      <button
-        type="button"
-        class="w-full p-2 rounded-xl bg-ink-navy text-white text-xs font-semibold hover:bg-ink-deep text-center transition-colors flex items-center justify-center gap-2"
-        @click="quickDemoSignIn('admin')"
-      >
-        <AppIcon name="user" :size="14" />
-        <span>Sign in as Company Admin (Marcus)</span>
-      </button>
-    </div>
-
-    <div class="text-center text-xs text-ink-muted">
+    <div class="text-center text-xs text-ink-muted pt-2 border-t border-stone-border">
       Don't have a workspace?
       <RouterLink to="/checkout" class="font-bold text-signal hover:underline ml-1">
-        Start Free Trial
+        Set up a company
       </RouterLink>
     </div>
   </div>

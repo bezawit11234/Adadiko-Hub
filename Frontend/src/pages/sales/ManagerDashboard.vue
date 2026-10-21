@@ -64,6 +64,7 @@ async function handleDecision(id: string, decision: 'Approved' | 'Rejected') {
 const chartPoints = computed(() => {
   if (!summary.value) return ''
   const items = summary.value.recentOrdersOverTime
+  if (!items || items.length < 2) return ''
   const maxVal = Math.max(...items.map((i) => i.amount), 15000)
   const width = 500
   const height = 160
@@ -209,8 +210,11 @@ const areaPoints = computed(() => {
           </span>
         </div>
 
-        <!-- Inline SVG Canvas -->
-        <div class="relative w-full overflow-hidden pt-2">
+        <!-- Inline SVG Canvas or Empty State -->
+        <div v-if="!summary || !summary.recentOrdersOverTime || summary.recentOrdersOverTime.length === 0" class="py-12 text-center text-xs text-ink-muted">
+          No closed sales data recorded yet. Telemetry will plot automatically as deals close.
+        </div>
+        <div v-else class="relative w-full overflow-hidden pt-2">
           <svg viewBox="0 0 500 160" class="w-full h-44 overflow-visible">
             <defs>
               <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
@@ -337,7 +341,11 @@ const areaPoints = computed(() => {
         </div>
       </div>
 
-      <div class="overflow-x-auto">
+      <div v-if="!summary || !summary.teamPerformance || summary.teamPerformance.length === 0" class="py-10 text-center text-xs text-ink-muted">
+        No sales representatives assigned or active deals recorded yet.
+      </div>
+
+      <div v-else class="overflow-x-auto">
         <table class="w-full text-left text-sm">
           <thead class="text-xs uppercase tracking-wider text-ink-muted border-b border-stone-border">
             <tr>

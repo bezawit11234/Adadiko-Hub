@@ -33,10 +33,10 @@ import { MODULE_CATALOG } from '@/data/catalog'
                 <AppIcon name="arrow-right" :size="18" />
               </AppButton>
             </RouterLink>
-            <RouterLink to="/demo">
+            <RouterLink to="/sign-in">
               <AppButton variant="outline" size="lg">
-                <AppIcon name="zap" :size="18" className="text-signal" />
-                <span>Launch Interactive Demo</span>
+                <AppIcon name="user" :size="18" className="text-signal" />
+                <span>Sign In to Workspace</span>
               </AppButton>
             </RouterLink>
           </div>
@@ -283,9 +283,9 @@ import { MODULE_CATALOG } from '@/data/catalog'
               Start Free Trial
             </AppButton>
           </RouterLink>
-          <RouterLink to="/demo">
+          <RouterLink to="/sign-in">
             <AppButton variant="outline" size="lg" block>
-              Try Demo Accounts
+              Sign In
             </AppButton>
           </RouterLink>
         </div>

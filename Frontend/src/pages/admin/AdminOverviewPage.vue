@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import StatCard from '@/components/common/StatCard.vue'
 import AppButton from '@/components/common/AppButton.vue'
@@ -7,6 +8,49 @@ import Badge from '@/components/common/Badge.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import SectionHeading from '@/components/common/SectionHeading.vue'
 import SampleNotice from '@/components/common/SampleNotice.vue'
+import { formatCurrency } from '@/utils/format'
+
+interface PlatformEvent {
+  id: string
+  text: string
+  time: string
+  color: string
+}
+
+const clientCount = ref(0)
+const totalMrr = ref(0)
+const modulesCount = ref(0)
+const events = ref<PlatformEvent[]>([])
+
+onMounted(() => {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('adadiko_mock_accounts')
+      if (raw) {
+        const accounts = JSON.parse(raw)
+        clientCount.value = accounts.length
+        let totalMod = 0
+        accounts.forEach((acc: any) => {
+          const mods = acc.organization?.subscribedModules || []
+          totalMod += mods.length
+        })
+        modulesCount.value = totalMod
+        totalMrr.value = accounts.length * 49
+        events.value = accounts.map((acc: any) => ({
+          id: acc.organization?.id || Math.random().toString(),
+          text: `Tenant ${acc.organization?.name || 'Workspace'} provisioned with ${acc.organization?.subscribedModules?.join(', ') || 'sales'} module`,
+          time: 'Active',
+          color: 'bg-status-green',
+        }))
+      }
+    } catch {
+      clientCount.value = 0
+      totalMrr.value = 0
+      modulesCount.value = 0
+      events.value = []
+    }
+  }
+})
 </script>
 
 <template>
@@ -34,36 +78,36 @@ import SampleNotice from '@/components/common/SampleNotice.vue'
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard
         title="Active Client Orgs"
-        value="18 Companies"
-        subtitle="+3 joined this month"
+        :value="`${clientCount} Companies`"
+        subtitle="Registered tenants"
         icon="building"
-        trend="up"
-        trend-value="+20%"
+        trend="neutral"
+        trend-value="Clean state"
         variant="signal"
       />
 
       <StatCard
         title="Platform MRR"
-        value="$42,850"
+        :value="formatCurrency(totalMrr)"
         subtitle="Monthly recurring revenue"
         icon="dollar-sign"
-        trend="up"
-        trend-value="+14.2%"
+        trend="neutral"
+        trend-value="Baseline"
       />
 
       <StatCard
         title="Active Modules Deployed"
-        value="46 Instances"
+        :value="`${modulesCount} Modules`"
         subtitle="Across all client tenants"
         icon="layers"
         trend="neutral"
-        trend-value="92% Sales"
+        trend-value="Catalog active"
       />
 
       <StatCard
-        title="Frappe Cloud Uptime"
-        value="99.98%"
-        subtitle="All regional clusters healthy"
+        title="Frappe Cloud Cluster"
+        value="Operational"
+        subtitle="Tenant database isolation"
         icon="shield"
         trend="up"
         trend-value="Optimal"
@@ -132,32 +176,24 @@ import SampleNotice from '@/components/common/SampleNotice.vue'
     <div class="bg-white rounded-3xl border border-stone-border shadow-soft p-6 sm:p-8 space-y-4">
       <h3 class="text-base font-bold text-ink font-heading pb-2 border-b border-stone-border flex items-center justify-between">
         <span>Recent Platform Events</span>
-        <span class="text-xs text-ink-muted">Simulated multi-tenant stream</span>
+        <span class="text-xs text-ink-muted">Multi-tenant provision stream</span>
       </h3>
 
-      <div class="space-y-3 text-xs">
-        <div class="p-3.5 rounded-xl bg-stone-bg/50 border border-stone-border flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <span class="w-2 h-2 rounded-full bg-status-green" />
-            <span class="text-ink">Tenant <strong>Apex Wholesale Ltd</strong> provisioned Sales & Customer Pipeline</span>
-          </div>
-          <span class="text-ink-muted font-mono">10m ago</span>
-        </div>
+      <div v-if="events.length === 0" class="py-8 text-center text-xs text-ink-muted">
+        No recent platform events recorded yet. New workspace registrations will appear here.
+      </div>
 
-        <div class="p-3.5 rounded-xl bg-stone-bg/50 border border-stone-border flex items-center justify-between">
+      <div v-else class="space-y-3 text-xs">
+        <div
+          v-for="ev in events"
+          :key="ev.id"
+          class="p-3.5 rounded-xl bg-stone-bg/50 border border-stone-border flex items-center justify-between"
+        >
           <div class="flex items-center gap-3">
-            <span class="w-2 h-2 rounded-full bg-status-blue" />
-            <span class="text-ink">Tenant <strong>Horizon Solar Ltd</strong> upgraded to Growth Suite</span>
+            <span :class="['w-2 h-2 rounded-full', ev.color]" />
+            <span class="text-ink">{{ ev.text }}</span>
           </div>
-          <span class="text-ink-muted font-mono">1h ago</span>
-        </div>
-
-        <div class="p-3.5 rounded-xl bg-stone-bg/50 border border-stone-border flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <span class="w-2 h-2 rounded-full bg-signal" />
-            <span class="text-ink">Frappe Cloud automated database backup snapshot verified</span>
-          </div>
-          <span class="text-ink-muted font-mono">4h ago</span>
+          <span class="text-ink-muted font-mono">{{ ev.time }}</span>
         </div>
       </div>
     </div>

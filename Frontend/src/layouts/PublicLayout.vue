@@ -11,7 +11,7 @@ const navLinks = [
   { name: 'Products', path: '/products' },
   { name: 'Solutions', path: '/solutions' },
   { name: 'Pricing', path: '/pricing' },
-  { name: 'Interactive Demo', path: '/demo' },
+  { name: 'Role Guide', path: '/demo' },
   { name: 'Help & Docs', path: '/help' },
 ]
 </script>
@@ -22,8 +22,8 @@ const navLinks = [
     <div class="bg-ink-navy text-white text-xs py-2 px-4 text-center font-medium flex items-center justify-center gap-2">
       <span class="w-1.5 h-1.5 rounded-full bg-signal" />
       <span>Adadiko Hub is engineered for seamless Frappe / ERPNext v16 enterprise integration.</span>
-      <RouterLink to="/demo" class="underline text-signal hover:text-white ml-1">
-        Try Interactive Demo →
+      <RouterLink to="/checkout" class="underline text-signal hover:text-white ml-1">
+        Get Started Free →
       </RouterLink>
     </div>
 
@@ -156,9 +156,8 @@ const navLinks = [
             <ul class="space-y-2 text-sm">
               <li><RouterLink to="/solutions" class="hover:text-white transition-colors">Wholesale & Distribution</RouterLink></li>
               <li><RouterLink to="/pricing" class="hover:text-white transition-colors">Pricing & Plans</RouterLink></li>
-              <li><RouterLink to="/demo" class="hover:text-white transition-colors">Interactive Demo</RouterLink></li>
+              <li><RouterLink to="/demo" class="hover:text-white transition-colors">Role Tour & Guide</RouterLink></li>
               <li><RouterLink to="/help" class="hover:text-white transition-colors">Help Center</RouterLink></li>
-              <li><RouterLink to="/admin" class="hover:text-white transition-colors">Platform Admin HQ</RouterLink></li>
             </ul>
           </div>
 
@@ -167,10 +166,8 @@ const navLinks = [
               Sign In & Access
             </h4>
             <ul class="space-y-2 text-sm">
-              <li><RouterLink to="/sign-in" class="hover:text-white transition-colors">Client Workspace</RouterLink></li>
-              <li><RouterLink to="/register" class="hover:text-white transition-colors">Create Organization</RouterLink></li>
-              <li><RouterLink to="/checkout" class="hover:text-white transition-colors">Subscribe Now</RouterLink></li>
-              <li><RouterLink to="/app/sales" class="hover:text-white transition-colors">Open App Shell</RouterLink></li>
+              <li><RouterLink to="/sign-in" class="hover:text-white transition-colors">Sign in to workspace</RouterLink></li>
+              <li><RouterLink to="/checkout" class="hover:text-white transition-colors">Start a new workspace</RouterLink></li>
             </ul>
           </div>
         </div>

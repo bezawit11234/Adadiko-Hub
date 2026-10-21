@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePlanSelection } from '@/composables/usePlanSelection'
 import { useSession } from '@/composables/useSession'
-import type { ModuleKey, Organization } from '@/types'
+import { getAuthApi } from '@/services/auth'
 import AppButton from '@/components/common/AppButton.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import Badge from '@/components/common/Badge.vue'
@@ -29,98 +29,137 @@ const {
   allTiers,
 } = usePlanSelection()
 
-const { setOrganization, signIn } = useSession()
+const { setOrganization, setUser } = useSession()
+const authApi = getAuthApi()
 
-// Steps: 1: Plan & Modules -> 2: Organization -> 3: Payment -> 4: Provisioning Animation
-const currentStep = ref<1 | 2 | 3 | 4>(1)
+// 1 company → 2 modules → 3 pay → 4 register password → 5 provisioning
+const currentStep = ref<1 | 2 | 3 | 4 | 5>(1)
 
-// Form State
-const orgName = ref('Apex Wholesale Ltd')
-const adminName = ref('Marcus Brody')
-const adminEmail = ref('admin@apex-wholesale.example')
-const country = ref('Kenya')
-const paymentCardNumber = ref('•••• •••• •••• 4242')
-const paymentExpiry = ref('12/28')
-const paymentCvc = ref('921')
+const orgName = ref('')
+const adminName = ref('')
+const adminEmail = ref('')
+const country = ref('')
+const password = ref('')
+const confirmPassword = ref('')
+const stepError = ref('')
+const paymentCardNumber = ref('')
+const paymentExpiry = ref('')
+const paymentCvc = ref('')
 
-// Provisioning Animation state
 const provisioningPercent = ref(15)
 const provisioningStatusText = ref('Initializing tenant database schema on Frappe Cloud...')
 
 function nextStep() {
-  if (currentStep.value < 3) {
-    currentStep.value = (currentStep.value + 1) as 2 | 3
-  } else if (currentStep.value === 3) {
-    // Start provisioning animation!
+  stepError.value = ''
+  if (currentStep.value === 1) {
+    if (!orgName.value.trim() || !adminName.value.trim() || !adminEmail.value.trim()) {
+      stepError.value = 'Enter your company name, your name, and a work email to continue.'
+      return
+    }
+    currentStep.value = 2
+    return
+  }
+  if (currentStep.value === 2) {
+    currentStep.value = 3
+    return
+  }
+  if (currentStep.value === 3) {
     currentStep.value = 4
+    return
+  }
+  if (currentStep.value === 4) {
+    if (password.value.trim().length < 8) {
+      stepError.value = 'Choose a password with at least 8 characters. You will use it every time you sign in.'
+      return
+    }
+    if (password.value !== confirmPassword.value) {
+      stepError.value = 'The two passwords do not match.'
+      return
+    }
+    currentStep.value = 5
     runProvisioningSimulation()
   }
 }
 
 function prevStep() {
-  if (currentStep.value > 1 && currentStep.value < 4) {
-    currentStep.value = (currentStep.value - 1) as 1 | 2
+  stepError.value = ''
+  if (currentStep.value > 1 && currentStep.value < 5) {
+    currentStep.value = (currentStep.value - 1) as 1 | 2 | 3
   }
 }
 
 function runProvisioningSimulation() {
   const steps = [
-    { pct: 35, text: 'Configuring role permissions (System Manager, Sales User, Accounts User)...' },
-    { pct: 60, text: 'Installing subscribed module schemas: Sales & Customer CRM...' },
-    { pct: 85, text: 'Preloading demonstration stock catalog & sample pricing rules...' },
-    { pct: 100, text: 'Workspace ready! Redirecting to client dashboard...' },
+    { pct: 35, text: 'Saving your company and the modules you bought...' },
+    { pct: 60, text: 'Creating your admin login...' },
+    { pct: 85, text: 'Opening the workspace so you can invite your team...' },
+    { pct: 100, text: 'Workspace ready. You can invite teammates next.' },
   ]
 
   let i = 0
-  const interval = setInterval(() => {
+  let finishing = false
+  const interval = setInterval(async () => {
+    if (finishing) return
     if (i < steps.length) {
       provisioningPercent.value = steps[i].pct
       provisioningStatusText.value = steps[i].text
       i++
-    } else {
-      clearInterval(interval)
-      // Save newly created organization to session
-      const newOrg: Organization = {
-        id: 'org_' + Math.random().toString(36).substring(2, 9),
-        name: orgName.value || 'Apex Wholesale Ltd',
+      return
+    }
+    finishing = true
+    clearInterval(interval)
+    const res = await authApi.register(
+      adminName.value.trim(),
+      adminEmail.value.trim().toLowerCase(),
+      orgName.value.trim() || 'My Company',
+      password.value,
+      {
         plan: selectedPlanId.value,
         billingCycle: billingCycle.value,
         subscribedModules: [...selectedModules.value],
-        createdDate: new Date().toISOString().split('T')[0],
-        status: 'active',
-      }
-      setOrganization(newOrg)
-      signIn(adminEmail.value, 'admin')
-
-      // Redirect into client workspace
-      setTimeout(() => {
-        router.push('/app/sales/dashboard')
-      }, 700)
+      },
+    )
+    if (!res.ok || !res.data) {
+      currentStep.value = 4
+      stepError.value = res.error || 'Could not create your account. Try a different email.'
+      return
     }
+    setUser(res.data)
+    setOrganization({
+      id: res.data.organizationId,
+      name: orgName.value.trim() || 'My Company',
+      plan: selectedPlanId.value,
+      billingCycle: billingCycle.value,
+      subscribedModules: [...selectedModules.value],
+      createdDate: new Date().toISOString().split('T')[0],
+      status: 'active',
+    })
+    setTimeout(() => {
+      router.push({ path: '/app/users', query: { welcome: '1' } })
+    }, 700)
   }, 750)
 }
 </script>
 
 <template>
   <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-    <!-- Header -->
     <div class="text-center space-y-2">
-      <Badge variant="signal" size="sm">Workspace Provisioning</Badge>
+      <Badge variant="signal" size="sm">Workspace setup</Badge>
       <h1 class="text-3xl font-black text-ink font-heading">
         Set up your Adadiko Hub workspace
       </h1>
       <p class="text-sm text-ink-muted">
-        14-day free trial on dedicated Frappe v16 infrastructure. No immediate credit card charge.
+        Company first, then modules, then payment. You create a password last so you can sign in whenever you come back.
       </p>
     </div>
 
-    <!-- Stepper Indicator -->
-    <div v-if="currentStep < 4" class="bg-white p-4 rounded-2xl border border-stone-border shadow-soft flex items-center justify-between">
+    <div v-if="currentStep < 5" class="bg-white p-4 rounded-2xl border border-stone-border shadow-soft flex items-center justify-between">
       <div
         v-for="(st, idx) in [
-          { num: 1, label: 'Plan & Modules' },
-          { num: 2, label: 'Company Info' },
-          { num: 3, label: 'Review & Confirm' },
+          { num: 1, label: 'Company' },
+          { num: 2, label: 'Plan & modules' },
+          { num: 3, label: 'Pay' },
+          { num: 4, label: 'Create login' },
         ]"
         :key="st.num"
         class="flex-1 flex items-center gap-3"
@@ -146,13 +185,44 @@ function runProvisioningSimulation() {
         >
           {{ st.label }}
         </span>
-        <div v-if="idx < 2" class="flex-1 h-[1px] bg-stone-border mx-2 hidden md:block" />
+        <div v-if="idx < 3" class="flex-1 h-[1px] bg-stone-border mx-2 hidden md:block" />
       </div>
     </div>
 
-    <!-- STEP 1: Plan and Modules Selection -->
-    <div v-if="currentStep === 1" class="space-y-6">
-      <!-- Tier Selector -->
+    <p v-if="stepError" class="text-sm text-status-red font-medium">{{ stepError }}</p>
+
+    <!-- STEP 1: Company -->
+    <div v-if="currentStep === 1" class="bg-white p-6 sm:p-8 rounded-3xl border border-stone-border shadow-soft space-y-6">
+      <h3 class="text-base font-bold text-ink font-heading pb-2 border-b border-stone-border">
+        Your company
+      </h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Company / Organization Name" required>
+          <TextField v-model="orgName" placeholder="e.g. Acme Corporation" />
+        </Field>
+        <Field label="Operating Country / Jurisdiction" required>
+          <TextField v-model="country" placeholder="e.g. Kenya" />
+        </Field>
+        <Field label="Your name" required>
+          <TextField v-model="adminName" placeholder="e.g. John Doe" />
+        </Field>
+        <Field label="Work email" required hint="This email is how you will sign in later.">
+          <TextField v-model="adminEmail" type="email" placeholder="e.g. admin@acmecorp.com" />
+        </Field>
+      </div>
+      <p class="text-xs text-ink-muted">
+        You will choose a password after you pick modules and confirm payment. Team invites happen once the workspace is open.
+      </p>
+      <div class="flex items-center justify-end pt-4 border-t border-stone-border">
+        <AppButton variant="primary" size="md" @click="nextStep">
+          <span>Continue to modules</span>
+          <AppIcon name="arrow-right" :size="16" />
+        </AppButton>
+      </div>
+    </div>
+
+    <!-- STEP 2: Plan and Modules -->
+    <div v-else-if="currentStep === 2" class="space-y-6">
       <div class="bg-white p-6 rounded-3xl border border-stone-border shadow-soft space-y-4">
         <h3 class="text-sm font-bold uppercase tracking-wider text-ink font-heading">
           1. Choose Workspace Base Tier
@@ -181,7 +251,6 @@ function runProvisioningSimulation() {
         </div>
       </div>
 
-      <!-- Module Selection -->
       <div class="bg-white p-6 rounded-3xl border border-stone-border shadow-soft space-y-4">
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-bold uppercase tracking-wider text-ink font-heading">
@@ -189,7 +258,6 @@ function runProvisioningSimulation() {
           </h3>
           <span class="text-xs text-ink-muted">Sales is active by default</span>
         </div>
-
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div
             v-for="mod in allModules"
@@ -223,7 +291,6 @@ function runProvisioningSimulation() {
         </div>
       </div>
 
-      <!-- Cost Summary Bar -->
       <div class="bg-ink-navy text-white p-5 rounded-2xl shadow-lift flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <p class="text-xs text-stone-bg/60">Estimated Monthly Total</p>
@@ -231,63 +298,29 @@ function runProvisioningSimulation() {
             {{ formatCurrency(monthlyTotal) }} <span class="text-xs font-normal text-stone-bg/70">/ month</span>
           </div>
         </div>
-        <AppButton variant="primary" size="md" @click="nextStep">
-          <span>Continue to Company Details</span>
-          <AppIcon name="arrow-right" :size="16" />
-        </AppButton>
+        <div class="flex gap-2">
+          <AppButton variant="ghost" size="md" @click="prevStep">Back</AppButton>
+          <AppButton variant="primary" size="md" @click="nextStep">
+            <span>Continue to payment</span>
+            <AppIcon name="arrow-right" :size="16" />
+          </AppButton>
+        </div>
       </div>
     </div>
 
-    <!-- STEP 2: Company Details -->
-    <div v-else-if="currentStep === 2" class="bg-white p-6 sm:p-8 rounded-3xl border border-stone-border shadow-soft space-y-6">
-      <h3 class="text-base font-bold text-ink font-heading pb-2 border-b border-stone-border">
-        Organization Profile & First Admin Account
-      </h3>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Company / Organization Name" required>
-          <TextField v-model="orgName" placeholder="e.g. Apex Wholesale Ltd" />
-        </Field>
-
-        <Field label="Operating Country / Jurisdiction" required>
-          <TextField v-model="country" placeholder="e.g. Kenya" />
-        </Field>
-
-        <Field label="Admin Contact Name" required>
-          <TextField v-model="adminName" placeholder="e.g. Marcus Brody" />
-        </Field>
-
-        <Field label="Work Email Address" required>
-          <TextField v-model="adminEmail" type="email" placeholder="e.g. marcus@apex.example" />
-        </Field>
-      </div>
-
-      <div class="p-4 rounded-xl bg-stone-bg border border-stone-border text-xs text-ink-muted flex items-start gap-2.5">
-        <AppIcon name="shield" :size="16" className="text-status-green shrink-0 mt-0.5" />
-        <span>Your database tenant will be isolated on Frappe Cloud with automated daily backups and SSL encryption.</span>
-      </div>
-
-      <div class="flex items-center justify-between pt-4 border-t border-stone-border">
-        <AppButton variant="ghost" size="md" @click="prevStep">
-          Back
-        </AppButton>
-        <AppButton variant="primary" size="md" @click="nextStep">
-          <span>Continue to Confirmation</span>
-          <AppIcon name="arrow-right" :size="16" />
-        </AppButton>
-      </div>
-    </div>
-
-    <!-- STEP 3: Review & Payment Confirmation -->
+    <!-- STEP 3: Payment -->
     <div v-else-if="currentStep === 3" class="bg-white p-6 sm:p-8 rounded-3xl border border-stone-border shadow-soft space-y-6">
       <h3 class="text-base font-bold text-ink font-heading pb-2 border-b border-stone-border">
-        Review & Launch Workspace
+        Review & confirm
       </h3>
-
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div class="space-y-3">
           <p class="text-xs font-bold uppercase tracking-wider text-ink-muted">Order Summary</p>
           <div class="p-4 rounded-2xl bg-stone-bg border border-stone-border space-y-2 text-xs">
+            <div class="flex justify-between">
+              <span class="text-ink-muted">Company</span>
+              <span class="font-bold text-ink">{{ orgName }}</span>
+            </div>
             <div class="flex justify-between">
               <span class="text-ink-muted">Base Tier ({{ currentTier.name }})</span>
               <span class="font-bold text-ink num-tabular">{{ formatCurrency(basePrice) }}</span>
@@ -306,7 +339,6 @@ function runProvisioningSimulation() {
             </div>
           </div>
         </div>
-
         <div class="space-y-3">
           <p class="text-xs font-bold uppercase tracking-wider text-ink-muted">Simulated Payment Method</p>
           <div class="p-4 rounded-2xl bg-stone-bg border border-stone-border space-y-3 text-xs">
@@ -324,34 +356,53 @@ function runProvisioningSimulation() {
           </div>
         </div>
       </div>
-
       <div class="flex items-center justify-between pt-4 border-t border-stone-border">
-        <AppButton variant="ghost" size="md" @click="prevStep">
-          Back
-        </AppButton>
+        <AppButton variant="ghost" size="md" @click="prevStep">Back</AppButton>
         <AppButton variant="primary" size="lg" @click="nextStep">
-          <AppIcon name="zap" :size="16" />
-          <span>Launch Workspace (Free 14-Day Trial)</span>
+          <span>Continue to create login</span>
+          <AppIcon name="arrow-right" :size="16" />
         </AppButton>
       </div>
     </div>
 
-    <!-- STEP 4: Animated "Setting up your workspace..." screen -->
+    <!-- STEP 4: Register / password -->
+    <div v-else-if="currentStep === 4" class="bg-white p-6 sm:p-8 rounded-3xl border border-stone-border shadow-soft space-y-6">
+      <h3 class="text-base font-bold text-ink font-heading pb-2 border-b border-stone-border">
+        Create your login
+      </h3>
+      <p class="text-sm text-ink-muted">
+        This is the account you will use every time you open the website. After this step you can invite your team.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Name">
+          <TextField :model-value="adminName" disabled />
+        </Field>
+        <Field label="Email">
+          <TextField :model-value="adminEmail" disabled />
+        </Field>
+        <Field label="Password" required hint="At least 8 characters. Keep this — you will need it to sign in.">
+          <TextField v-model="password" type="password" placeholder="Create a password" />
+        </Field>
+        <Field label="Confirm password" required>
+          <TextField v-model="confirmPassword" type="password" placeholder="Type the password again" />
+        </Field>
+      </div>
+      <div class="flex items-center justify-between pt-4 border-t border-stone-border">
+        <AppButton variant="ghost" size="md" @click="prevStep">Back</AppButton>
+        <AppButton variant="primary" size="lg" @click="nextStep">
+          <AppIcon name="zap" :size="16" />
+          <span>Create account and open workspace</span>
+        </AppButton>
+      </div>
+    </div>
+
     <div
-      v-else-if="currentStep === 4"
+      v-else-if="currentStep === 5"
       class="bg-white p-10 rounded-3xl border border-stone-border shadow-card max-w-lg mx-auto text-center space-y-6"
     >
       <div class="relative w-24 h-24 mx-auto flex items-center justify-center">
-        <!-- Circular animated SVG loader -->
         <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-          <circle
-            cx="50"
-            cy="50"
-            r="42"
-            stroke="#E7E2D9"
-            stroke-width="8"
-            fill="transparent"
-          />
+          <circle cx="50" cy="50" r="42" stroke="#E7E2D9" stroke-width="8" fill="transparent" />
           <circle
             cx="50"
             cy="50"
@@ -369,16 +420,12 @@ function runProvisioningSimulation() {
           {{ provisioningPercent }}%
         </span>
       </div>
-
       <div class="space-y-2">
-        <h3 class="text-xl font-bold text-ink font-heading">
-          Setting up your workspace...
-        </h3>
+        <h3 class="text-xl font-bold text-ink font-heading">Setting up your workspace...</h3>
         <p class="text-xs text-ink-muted leading-relaxed min-h-[36px]">
           {{ provisioningStatusText }}
         </p>
       </div>
-
       <div class="p-3.5 rounded-xl bg-stone-bg border border-stone-border text-xs text-ink-muted flex items-center justify-center gap-2">
         <span class="w-2 h-2 rounded-full bg-signal animate-ping" />
         <span>Deploying tenant: <strong>{{ orgName }}</strong></span>

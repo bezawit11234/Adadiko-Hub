@@ -8,7 +8,6 @@ import AppIcon from '@/components/common/AppIcon.vue'
 import Badge from '@/components/common/Badge.vue'
 import Toast from '@/components/common/Toast.vue'
 import CommandPalette from '@/components/layout/CommandPalette.vue'
-import DemoSwitcher from '@/components/layout/DemoSwitcher.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -315,21 +314,6 @@ function triggerCommandPalette() {
               </RouterLink>
             </template>
 
-            <!-- Back Office Link (Adadiko Staff / Platform Admin) -->
-            <RouterLink
-              v-if="currentRole === 'adadiko_staff' || currentRole === 'admin'"
-              to="/admin"
-              class="group flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl text-stone-bg/70 hover:text-white hover:bg-ink-deep/50 transition-colors"
-              @click="mobileDrawerOpen = false"
-            >
-              <div class="flex items-center gap-3">
-                <AppIcon name="shield" :size="16" className="text-signal" />
-                <span>Adadiko Back Office</span>
-              </div>
-              <span class="text-[10px] bg-signal/20 text-signal px-1.5 py-0.5 rounded font-mono font-semibold">
-                HQ
-              </span>
-            </RouterLink>
           </nav>
         </div>
       </div>
@@ -384,8 +368,8 @@ function triggerCommandPalette() {
             <span class="text-stone-border">•</span>
             <span class="text-ink-muted">Plan: <strong class="uppercase text-ink">{{ currentOrg.plan }}</strong></span>
             <span class="text-stone-border">•</span>
-            <Badge variant="signal" size="sm" dot>
-              Demo account: {{ currentRoleInfo.label }}
+            <Badge variant="neutral" size="sm">
+              {{ currentRoleInfo.label }}
             </Badge>
           </div>
         </div>
@@ -437,8 +421,7 @@ function triggerCommandPalette() {
       </main>
     </div>
 
-    <!-- Interactive Manager Demo Switcher & Global Overlays -->
-    <DemoSwitcher />
+    <!-- Global Overlays -->
     <CommandPalette />
     <Toast />
   </div>

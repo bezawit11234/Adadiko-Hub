@@ -1,65 +1,165 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { DEMO_USERS, ROLE_DEFINITIONS, ROLE_PERMISSIONS, type Permission } from '@/data/roles'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { ROLE_DEFINITIONS, ROLE_PERMISSIONS, type Permission } from '@/data/roles'
 import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
+import { getAuthApi } from '@/services/auth'
 import type { User, Role } from '@/types'
 import AppButton from '@/components/common/AppButton.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import Badge from '@/components/common/Badge.vue'
+import SampleNotice from '@/components/common/SampleNotice.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import SectionHeading from '@/components/common/SectionHeading.vue'
 import DataTable, { type Column } from '@/components/common/DataTable.vue'
 import Modal from '@/components/common/Modal.vue'
 import Field from '@/components/common/Field.vue'
 import TextField from '@/components/common/TextField.vue'
-import SampleNotice from '@/components/common/SampleNotice.vue'
 
-const { currentUser } = useSession()
+const { currentUser, currentRole } = useSession()
+const route = useRoute()
 const toast = useToast()
+const authApi = getAuthApi()
+const showWelcome = computed(() => route.query.welcome === '1')
+const isAdmin = computed(() => currentRole.value === 'admin')
 
-const users = ref<User[]>([
-  DEMO_USERS.admin,
-  DEMO_USERS.sales_manager,
-  DEMO_USERS.sales_rep,
-  DEMO_USERS.accountant,
-  DEMO_USERS.storekeeper,
-])
+const users = ref<User[]>(currentUser.value ? [currentUser.value] : [])
+const loadingUsers = ref(false)
 
 // Invite User Modal
 const isInviteModalOpen = ref(false)
 const inviteName = ref('')
 const inviteEmail = ref('')
 const inviteRole = ref<Role>('sales_rep')
+const invitePassword = ref('password123')
+const isSubmitting = ref(false)
 
-const columns: Column[] = [
-  { key: 'name', label: 'Team Member' },
-  { key: 'email', label: 'Email Address' },
-  { key: 'role', label: 'Workspace Role' },
-  { key: 'erpnext', label: 'ERPNext Role Profile' },
-  { key: 'status', label: 'Status' },
-]
+const columns = computed<Column[]>(() => {
+  const base: Column[] = [
+    { key: 'name', label: 'Team Member' },
+    { key: 'email', label: 'Email Address' },
+    { key: 'role', label: 'Workspace Role' },
+    { key: 'erpnext', label: 'ERPNext Role Profile' },
+    { key: 'status', label: 'Status' },
+  ]
+  if (isAdmin.value) base.push({ key: 'actions', label: 'Actions', align: 'right' })
+  return base
+})
 
-function handleInviteUser() {
+const isEditModalOpen = ref(false)
+const isDeleteModalOpen = ref(false)
+const selectedUser = ref<User | null>(null)
+const editName = ref('')
+const editRole = ref<Role>('sales_rep')
+const editPassword = ref('')
+
+async function loadTeamMembers() {
+  loadingUsers.value = true
+  try {
+    const res = await authApi.listUsers()
+    if (res.ok && res.data && res.data.length > 0) {
+      users.value = res.data
+    } else if (currentUser.value) {
+      users.value = [currentUser.value]
+    } else {
+      users.value = []
+    }
+  } finally {
+    loadingUsers.value = false
+  }
+}
+
+onMounted(() => {
+  loadTeamMembers()
+})
+
+async function handleInviteUser() {
   if (!inviteName.value || !inviteEmail.value) {
     toast.error('Validation error', 'Please provide a name and email address.')
     return
   }
 
-  const newUser: User = {
-    id: 'usr_' + Math.random().toString(36).substring(2, 9),
-    name: inviteName.value,
-    email: inviteEmail.value,
-    role: inviteRole.value,
-    organizationId: 'org_acme',
-    isDemo: false,
-  }
+  isSubmitting.value = true
+  try {
+    const res = await authApi.inviteUser(
+      inviteName.value,
+      inviteEmail.value,
+      inviteRole.value,
+      invitePassword.value || 'password123'
+    )
 
-  users.value.push(newUser)
-  toast.success('Invitation Sent', `Invitation emailed to ${inviteEmail.value} as ${ROLE_DEFINITIONS[inviteRole.value].label}.`)
-  isInviteModalOpen.value = false
-  inviteName.value = ''
-  inviteEmail.value = ''
+    if (res.ok && res.data) {
+      toast.success(
+        'Teammate Account Created',
+        `User ${inviteEmail.value} can now sign in as ${ROLE_DEFINITIONS[inviteRole.value].label} with their password.`
+      )
+      isInviteModalOpen.value = false
+      inviteName.value = ''
+      inviteEmail.value = ''
+      invitePassword.value = 'password123'
+      await loadTeamMembers()
+    } else {
+      toast.error('Failed to create account', res.error || 'Could not register user.')
+    }
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+function openEdit(user: User): void {
+  selectedUser.value = user
+  editName.value = user.name
+  editRole.value = user.role
+  editPassword.value = ''
+  isEditModalOpen.value = true
+}
+
+function openDelete(user: User): void {
+  selectedUser.value = user
+  isDeleteModalOpen.value = true
+}
+
+async function handleEditUser(): Promise<void> {
+  if (!selectedUser.value || !editName.value.trim()) {
+    toast.error('Validation error', 'Enter a name for this teammate.')
+    return
+  }
+  isSubmitting.value = true
+  try {
+    const res = await authApi.updateUser(selectedUser.value.id, {
+      name: editName.value.trim(),
+      role: editRole.value,
+      password: editPassword.value.trim() || undefined,
+    })
+    if (!res.ok || !res.data) {
+      toast.error('Could not save in ERPNext', res.error || 'The user was not updated.')
+      return
+    }
+    toast.success('Teammate updated', 'Name, role, and password were saved in ERPNext.')
+    isEditModalOpen.value = false
+    await loadTeamMembers()
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+async function handleDeleteUser(): Promise<void> {
+  if (!selectedUser.value) return
+  isSubmitting.value = true
+  try {
+    const res = await authApi.deleteUser(selectedUser.value.id)
+    if (!res.ok) {
+      toast.error('Could not remove in ERPNext', res.error || 'The user was not deleted.')
+      return
+    }
+    toast.success('Teammate removed', 'This person can no longer sign in.')
+    isDeleteModalOpen.value = false
+    selectedUser.value = null
+    await loadTeamMembers()
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 // Permission matrix keys
@@ -81,6 +181,15 @@ const matrixRoles: Role[] = ['sales_rep', 'sales_manager', 'accountant', 'storek
 
 <template>
   <PageContainer max-width="2xl">
+    <div
+      v-if="showWelcome"
+      class="rounded-2xl border border-signal/30 bg-signal-subtle/50 p-4 text-sm text-ink"
+    >
+      <p class="font-bold text-ink">Your workspace is ready.</p>
+      <p class="mt-1 text-ink-muted">
+        Invite your team with a name, email, role, and password. They will sign in from the Sign In page whenever they open the site. You will also sign in with the password you just created the next time you return.
+      </p>
+    </div>
     <SampleNotice text="Team & Access Control: User profiles with Frappe v16 Role Profile mappings and Sales permission matrix." />
 
     <SectionHeading
@@ -91,7 +200,7 @@ const matrixRoles: Role[] = ['sales_rep', 'sales_manager', 'accountant', 'storek
         <Badge variant="signal" size="sm">{{ users.length }} Active Staff</Badge>
       </template>
       <template #actions>
-        <AppButton variant="primary" size="sm" @click="isInviteModalOpen = true">
+        <AppButton v-if="isAdmin" variant="primary" size="sm" @click="isInviteModalOpen = true">
           <AppIcon name="plus" :size="16" />
           <span>Invite User</span>
         </AppButton>
@@ -99,7 +208,13 @@ const matrixRoles: Role[] = ['sales_rep', 'sales_manager', 'accountant', 'storek
     </SectionHeading>
 
     <!-- Users Table -->
-    <DataTable :columns="columns" :rows="users">
+    <DataTable
+      :columns="columns"
+      :rows="users"
+      :loading="loadingUsers"
+      empty-title="No team members registered yet"
+      empty-description="Invite coworkers to grant them role-specific access to this workspace."
+    >
       <template #name="{ row }">
         <div class="flex items-center gap-2.5">
           <div class="w-8 h-8 rounded-lg bg-ink-navy text-white flex items-center justify-center font-bold text-xs uppercase">
@@ -128,10 +243,25 @@ const matrixRoles: Role[] = ['sales_rep', 'sales_manager', 'accountant', 'storek
         </span>
       </template>
 
-      <template #status="{ row }">
-        <Badge :variant="row.isDemo ? 'info' : 'success'" size="sm" dot>
-          {{ row.isDemo ? 'Demo Account' : 'Active' }}
+      <template #status>
+        <Badge variant="success" size="sm" dot>
+          Active
         </Badge>
+      </template>
+
+      <template #actions="{ row }">
+        <div v-if="isAdmin" class="flex justify-end gap-2">
+          <AppButton variant="outline" size="sm" @click="openEdit(row)">Edit</AppButton>
+          <AppButton
+            v-if="row.id !== currentUser?.id"
+            variant="danger"
+            size="sm"
+            @click="openDelete(row)"
+          >
+            <AppIcon name="trash" :size="14" />
+            <span>Delete</span>
+          </AppButton>
+        </div>
       </template>
     </DataTable>
 
@@ -211,14 +341,69 @@ const matrixRoles: Role[] = ['sales_rep', 'sales_manager', 'accountant', 'storek
             </option>
           </select>
         </Field>
+
+        <Field label="Initial Password" required hint="Password the teammate will use to sign in">
+          <TextField v-model="invitePassword" type="password" placeholder="e.g. password123" />
+        </Field>
       </div>
 
       <template #footer>
         <AppButton variant="ghost" size="sm" @click="isInviteModalOpen = false">
           Cancel
         </AppButton>
-        <AppButton variant="primary" size="sm" @click="handleInviteUser">
-          Send Invitation
+        <AppButton variant="primary" size="sm" :loading="isSubmitting" @click="handleInviteUser">
+          Create Account & Invite
+        </AppButton>
+      </template>
+    </Modal>
+
+    <Modal
+      :is-open="isEditModalOpen"
+      title="Edit teammate"
+      subtitle="Changes are saved on the ERPNext User record."
+      max-width="md"
+      @close="isEditModalOpen = false"
+    >
+      <div class="space-y-4 text-xs">
+        <Field label="Full Name" required>
+          <TextField v-model="editName" />
+        </Field>
+        <Field label="Workspace Role" required>
+          <select
+            v-model="editRole"
+            class="block w-full rounded-xl border border-stone-border bg-white px-3.5 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-signal/20 focus:border-signal"
+          >
+            <option v-for="r in matrixRoles" :key="r" :value="r">
+              {{ ROLE_DEFINITIONS[r].label }} ({{ ROLE_DEFINITIONS[r].erpnextRole }})
+            </option>
+          </select>
+        </Field>
+        <Field label="New password" hint="Leave blank to keep the current password.">
+          <TextField v-model="editPassword" type="password" placeholder="Optional" />
+        </Field>
+      </div>
+      <template #footer>
+        <AppButton variant="ghost" size="sm" @click="isEditModalOpen = false">Cancel</AppButton>
+        <AppButton variant="primary" size="sm" :loading="isSubmitting" @click="handleEditUser">
+          Save in ERPNext
+        </AppButton>
+      </template>
+    </Modal>
+
+    <Modal
+      :is-open="isDeleteModalOpen"
+      title="Remove teammate"
+      subtitle="This deletes or disables the User in ERPNext."
+      max-width="sm"
+      @close="isDeleteModalOpen = false"
+    >
+      <p class="text-sm text-ink">
+        Remove <strong>{{ selectedUser?.name }}</strong> ({{ selectedUser?.email }}) from this workspace?
+      </p>
+      <template #footer>
+        <AppButton variant="ghost" size="sm" @click="isDeleteModalOpen = false">Cancel</AppButton>
+        <AppButton variant="danger" size="sm" :loading="isSubmitting" @click="handleDeleteUser">
+          Delete in ERPNext
         </AppButton>
       </template>
     </Modal>

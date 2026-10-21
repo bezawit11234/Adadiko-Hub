@@ -6,13 +6,16 @@ import DataTable, { type Column } from '@/components/common/DataTable.vue'
 import Badge from '@/components/common/Badge.vue'
 import SampleNotice from '@/components/common/SampleNotice.vue'
 
-const logs = ref([
-  { id: 'LOG-8812', timestamp: '2026-03-12 10:14:22', level: 'INFO', event: 'Frappe REST Dispatch', tenant: 'Apex Wholesale Ltd', details: 'POST /api/resource/Sales Order (SO-2026-0104)' },
-  { id: 'LOG-8811', timestamp: '2026-03-12 10:02:15', level: 'AUTH', event: 'User Sign In', tenant: 'Apex Wholesale Ltd', details: 'User sarah.mgr@adadiko.demo authenticated successfully' },
-  { id: 'LOG-8810', timestamp: '2026-03-12 09:45:00', level: 'SYSTEM', event: 'Database Backup', tenant: 'System Cluster', details: 'Automated snapshot tenant_db_acme completed (42ms)' },
-  { id: 'LOG-8809', timestamp: '2026-03-12 08:30:19', level: 'INFO', event: 'Module License Check', tenant: 'Horizon Solar Ltd', details: 'Validated permissions for module: sales, inventory' },
-  { id: 'LOG-8808', timestamp: '2026-03-11 18:22:40', level: 'WARN', event: 'Rate Limit Warning', tenant: 'Sahara Grocers', details: 'Tenant approaching 80% hourly Frappe API quota' },
-])
+interface PlatformLog {
+  id: string
+  timestamp: string
+  level: string
+  event: string
+  tenant: string
+  details: string
+}
+
+const logs = ref<PlatformLog[]>([])
 
 const columns: Column[] = [
   { key: 'timestamp', label: 'Timestamp' },
@@ -36,7 +39,12 @@ const columns: Column[] = [
       </template>
     </SectionHeading>
 
-    <DataTable :columns="columns" :rows="logs">
+    <DataTable
+      :columns="columns"
+      :rows="logs"
+      empty-title="No system audit logs recorded yet"
+      empty-description="System events, API dispatches, and authentication activity will be captured here."
+    >
       <template #timestamp="{ value }">
         <span class="font-mono text-xs text-ink-muted">{{ value }}</span>
       </template>

@@ -34,7 +34,7 @@ import CommandPalette from '@/components/layout/CommandPalette.vue'
       <div class="flex items-center justify-center gap-4">
         <RouterLink to="/help" class="hover:underline">Help & Support</RouterLink>
         <span>•</span>
-        <RouterLink to="/demo" class="hover:underline">Demo Accounts</RouterLink>
+        <RouterLink to="/checkout" class="hover:underline">Set up a company</RouterLink>
       </div>
     </div>
 

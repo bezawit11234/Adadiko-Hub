@@ -10,8 +10,13 @@ import Badge from '@/components/common/Badge.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 
 const router = useRouter()
-const { currentRole, switchRole } = useSession()
+const { currentRole, signOut } = useSession()
 const { roleHomeRoute } = useAccess()
+
+async function handleSignOut() {
+  await signOut()
+  router.push('/sign-in')
+}
 
 const currentRoleInfo = computed(() => ROLE_DEFINITIONS[currentRole.value])
 </script>
@@ -53,8 +58,8 @@ const currentRoleInfo = computed(() => ROLE_DEFINITIONS[currentRole.value])
             Go to Your Work Home
           </AppButton>
         </RouterLink>
-        <AppButton variant="outline" size="md" @click="switchRole('admin')">
-          Switch to Company Admin
+        <AppButton variant="outline" size="md" @click="handleSignOut">
+          Sign Out / Switch Account
         </AppButton>
       </div>
     </div>

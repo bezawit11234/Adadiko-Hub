@@ -7,12 +7,16 @@ import Badge from '@/components/common/Badge.vue'
 import SampleNotice from '@/components/common/SampleNotice.vue'
 import { formatCurrency, formatDate } from '@/utils/format'
 
-const orders = ref([
-  { id: 'ORD-SaaS-901', clientName: 'Horizon Smart Solar Ltd', item: 'Enterprise Plan + 2 Modules', amount: 389.0, date: '2026-03-01', status: 'Completed' },
-  { id: 'ORD-SaaS-899', clientName: 'Sahara Grocers Cooperative', item: 'Growth Suite Starter', amount: 119.0, date: '2026-02-28', status: 'Completed' },
-  { id: 'ORD-SaaS-884', clientName: 'Apex Wholesale Ltd', item: 'Growth Suite Monthly', amount: 119.0, date: '2026-02-15', status: 'Completed' },
-  { id: 'ORD-SaaS-872', clientName: 'Atlas Industrial Workshop', item: 'Starter Workspace', amount: 49.0, date: '2026-02-01', status: 'Completed' },
-])
+interface PlatformOrder {
+  id: string
+  clientName: string
+  item: string
+  amount: number
+  date: string
+  status: string
+}
+
+const orders = ref<PlatformOrder[]>([])
 
 const columns: Column[] = [
   { key: 'id', label: 'Order #' },
@@ -37,7 +41,12 @@ const columns: Column[] = [
       </template>
     </SectionHeading>
 
-    <DataTable :columns="columns" :rows="orders">
+    <DataTable
+      :columns="columns"
+      :rows="orders"
+      empty-title="No SaaS platform orders placed yet"
+      empty-description="Client tier subscriptions and module purchases will be tracked here."
+    >
       <template #id="{ value }">
         <span class="font-mono font-bold text-ink">{{ value }}</span>
       </template>

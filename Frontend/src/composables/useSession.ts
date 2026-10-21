@@ -1,19 +1,19 @@
 import { ref, computed } from 'vue'
 import type { User, Organization, Role, ModuleKey } from '@/types'
-import { DEMO_USERS, ROLE_DEFINITIONS } from '@/data/roles'
+import { ROLE_DEFINITIONS } from '@/data/roles'
 import { getAuthApi } from '@/services/auth'
 
 const STORAGE_KEY_USER = 'adadiko_current_user'
 const STORAGE_KEY_ORG = 'adadiko_current_org'
 const STORAGE_KEY_MODE = 'adadiko_api_mode'
 
-const defaultOrg: Organization = {
-  id: 'org_acme',
-  name: 'Adadiko Hub Corp',
-  plan: 'growth',
+const emptyOrg: Organization = {
+  id: '',
+  name: 'My Workspace',
+  plan: 'starter',
   billingCycle: 'monthly',
-  subscribedModules: ['sales'], // Core Sales purchased by default
-  createdDate: '2026-01-15',
+  subscribedModules: ['sales'],
+  createdDate: new Date().toISOString().split('T')[0],
   status: 'active',
 }
 
@@ -25,66 +25,61 @@ function loadStoredMode(): 'mock' | 'frappe' {
 
 const apiMode = ref<'mock' | 'frappe'>(loadStoredMode())
 
+function sessionStore(): Storage | null {
+  if (typeof sessionStorage === 'undefined') return null
+  return sessionStorage
+}
+
 function loadStoredUser(): User | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_USER)
-    if (raw) return JSON.parse(raw)
+    const raw = sessionStore()?.getItem(STORAGE_KEY_USER)
+    if (raw) return JSON.parse(raw) as User
   } catch {
     // fallback
-  }
-  // In mock mode, default to Sarah Chen demo user for convenience
-  if (apiMode.value === 'mock') {
-    return DEMO_USERS.sales_manager
   }
   return null
 }
 
 function loadStoredOrg(): Organization {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_ORG)
-    if (raw) return JSON.parse(raw)
+    const raw = sessionStore()?.getItem(STORAGE_KEY_ORG)
+    if (raw) return JSON.parse(raw) as Organization
   } catch {
     // fallback
   }
-  return defaultOrg
+  return emptyOrg
 }
 
 const currentUser = ref<User | null>(loadStoredUser())
 const currentOrg = ref<Organization>(loadStoredOrg())
-const isDemoModeVisible = ref<boolean>(true)
+const isDemoModeVisible = ref<boolean>(false)
 const isSessionChecked = ref<boolean>(false)
 
 export function useSession() {
   const isAuthenticated = computed(() => !!currentUser.value)
   const currentRole = computed<Role>(() => currentUser.value?.role || 'sales_rep')
-  const currentRoleMeta = computed(() => ROLE_DEFINITIONS[currentRole.value])
+  const currentRoleMeta = computed(() => ROLE_DEFINITIONS[currentRole.value] || ROLE_DEFINITIONS.sales_rep)
 
   function setApiMode(mode: 'mock' | 'frappe') {
     apiMode.value = mode
     localStorage.setItem(STORAGE_KEY_MODE, mode)
-    // Reload to ensure services and adapters switch cleanly
     window.location.reload()
   }
 
   function setUser(user: User | null) {
     currentUser.value = user
+    const store = sessionStore()
+    if (!store) return
     if (user) {
-      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user))
+      store.setItem(STORAGE_KEY_USER, JSON.stringify(user))
     } else {
-      localStorage.removeItem(STORAGE_KEY_USER)
+      store.removeItem(STORAGE_KEY_USER)
     }
   }
 
   function setOrganization(org: Organization) {
     currentOrg.value = org
-    localStorage.setItem(STORAGE_KEY_ORG, JSON.stringify(org))
-  }
-
-  function switchRole(role: Role) {
-    const demoUser = DEMO_USERS[role]
-    if (demoUser) {
-      setUser(demoUser)
-    }
+    sessionStore()?.setItem(STORAGE_KEY_ORG, JSON.stringify(org))
   }
 
   function toggleSubscribedModule(moduleKey: ModuleKey) {
@@ -102,8 +97,8 @@ export function useSession() {
   }
 
   async function restoreSession(): Promise<User | null> {
+    const authApi = getAuthApi()
     if (apiMode.value === 'frappe') {
-      const authApi = getAuthApi()
       const res = await authApi.getSession()
       if (res.ok && res.data) {
         setUser(res.data)
@@ -114,38 +109,36 @@ export function useSession() {
         isSessionChecked.value = true
         return null
       }
+    } else {
+      const res = await authApi.getSession()
+      if (res.ok && res.data) {
+        setUser(res.data)
+        currentOrg.value = loadStoredOrg()
+        isSessionChecked.value = true
+        return res.data
+      } else {
+        setUser(null)
+        isSessionChecked.value = true
+        return null
+      }
     }
-    isSessionChecked.value = true
-    return currentUser.value
   }
 
   async function signOut(): Promise<void> {
     const authApi = getAuthApi()
     await authApi.signOut()
     setUser(null)
+    setOrganization(emptyOrg)
   }
 
-  function signIn(email: string, role: Role = 'sales_rep') {
-    const foundDemo = Object.values(DEMO_USERS).find((u) => u.email === email)
-    if (foundDemo) {
-      setUser(foundDemo)
-      return foundDemo
+  async function signIn(email: string, password = ''): Promise<{ ok: boolean; error?: string; data?: User }> {
+    const authApi = getAuthApi()
+    const res = await authApi.signIn(email, password)
+    if (res.ok && res.data) {
+      setUser(res.data)
+      currentOrg.value = loadStoredOrg()
     }
-    const newUser: User = {
-      id: 'usr_' + Math.random().toString(36).substring(2, 9),
-      email,
-      name: email.split('@')[0].replace('.', ' '),
-      role,
-      organizationId: currentOrg.value.id,
-      isDemo: false,
-    }
-    setUser(newUser)
-    return newUser
-  }
-
-  function resetToDemoDefaults() {
-    setUser(DEMO_USERS.sales_manager)
-    setOrganization(defaultOrg)
+    return res
   }
 
   return {
@@ -160,12 +153,9 @@ export function useSession() {
     setApiMode,
     setUser,
     setOrganization,
-    switchRole,
     toggleSubscribedModule,
     restoreSession,
-    signIn,
     signOut,
-    resetToDemoDefaults,
+    signIn,
   }
-
 }

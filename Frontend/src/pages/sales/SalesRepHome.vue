@@ -21,11 +21,7 @@ const customers = ref<Customer[]>([])
 const loading = ref(true)
 
 // Checklist of personal daily actions for the sales rep
-const tasks = ref([
-  { id: 1, text: 'Call Blue Nile Trading PLC regarding quotation QTN-2026-0078', completed: false, due: 'Today, 2:00 PM' },
-  { id: 2, text: 'Confirm freight tracking for Horizon Smart Solar shipment DN-2026-0052', completed: true, due: 'Done' },
-  { id: 3, text: 'Send revised warranty sheet to Atlas Industrial Workshop', completed: false, due: 'Today, 4:30 PM' },
-])
+const tasks = ref<{ id: number; text: string; completed: boolean; due: string }[]>([])
 
 function toggleTask(id: number) {
   const t = tasks.value.find((item) => item.id === id)
@@ -77,7 +73,7 @@ const followUpCustomers = computed(() => {
           <span class="w-1.5 h-1.5 rounded-full bg-signal" />
         </div>
         <h1 class="text-2xl sm:text-3xl font-black text-ink font-heading">
-          Good morning, {{ currentUser?.name || 'Tariq' }}
+          Good morning, {{ currentUser?.name || 'there' }}
         </h1>
         <p class="text-sm text-ink-muted">
           You have <strong class="text-ink">{{ myOpenOrders.length }} active orders</strong> and <strong class="text-ink">{{ waitingQuotations.length }} quotations</strong> awaiting customer response today.
@@ -109,7 +105,11 @@ const followUpCustomers = computed(() => {
             </span>
           </div>
 
-          <div class="space-y-2.5">
+          <div v-if="tasks.length === 0" class="py-8 text-center text-xs text-ink-muted">
+            No follow-up tasks scheduled for today. You are all caught up!
+          </div>
+
+          <div v-else class="space-y-2.5">
             <div
               v-for="task in tasks"
               :key="task.id"
@@ -197,7 +197,11 @@ const followUpCustomers = computed(() => {
             </RouterLink>
           </div>
 
-          <div class="space-y-3">
+          <div v-if="waitingQuotations.length === 0" class="py-6 text-center text-xs text-ink-muted">
+            No quotations awaiting customer response.
+          </div>
+
+          <div v-else class="space-y-3">
             <div
               v-for="quote in waitingQuotations"
               :key="quote.id"
@@ -228,7 +232,11 @@ const followUpCustomers = computed(() => {
             </RouterLink>
           </div>
 
-          <div class="space-y-3">
+          <div v-if="followUpCustomers.length === 0" class="py-6 text-center text-xs text-ink-muted">
+            No accounts currently requiring follow-up.
+          </div>
+
+          <div v-else class="space-y-3">
             <div
               v-for="cust in followUpCustomers.slice(0, 3)"
               :key="cust.id"

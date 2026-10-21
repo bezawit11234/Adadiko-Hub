@@ -32,7 +32,6 @@ const commands: CommandItem[] = [
   { id: 'invoices', title: 'Invoices & Payments', subtitle: 'Customer receivables, overdue accounts, record payments', icon: 'receipt', route: '/app/sales/invoices', category: 'Accounting' },
   { id: 'users', title: 'Team & Permissions', subtitle: 'Invite staff and manage sales role matrix', icon: 'user', route: '/app/users', category: 'Admin' },
   { id: 'plan', title: 'Workspace Modules & Plan', subtitle: 'Manage active subscriptions and monthly billing', icon: 'credit-card', route: '/app/plan', category: 'Admin' },
-  { id: 'admin_hq', title: 'Adadiko Back Office', subtitle: 'Platform overview, client orgs, SaaS subscriptions', icon: 'shield', route: '/admin', category: 'Platform HQ' },
   { id: 'pub_home', title: 'Public Landing Page', subtitle: 'Visitor website and value proposition', icon: 'home', route: '/', category: 'Public' },
   { id: 'pub_products', title: 'Module Marketplace', subtitle: 'Browse Adadiko modular business suite', icon: 'catalog', route: '/products', category: 'Public' },
   { id: 'pub_pricing', title: 'Pricing & Plans', subtitle: 'Explore monthly and yearly business plans', icon: 'dollar-sign', route: '/pricing', category: 'Public' },

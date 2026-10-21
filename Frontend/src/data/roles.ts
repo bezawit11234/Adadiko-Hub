@@ -71,7 +71,7 @@ export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
     label: 'Adadiko Staff',
     erpnextRole: 'Adadiko Platform Operator',
     description: 'Platform management, client organizations, marketplace catalog and system audit',
-    defaultHome: '/admin',
+    defaultHome: '/app',
   },
 }
 
@@ -138,54 +138,5 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
 }
 
-// Demo test users for manager & stakeholder evaluation
-export const DEMO_USERS: Record<Role, User> = {
-  sales_rep: {
-    id: 'usr_rep_1',
-    email: 'tariq.rep@adadiko.demo',
-    name: 'Tariq Mensah',
-    role: 'sales_rep',
-    organizationId: 'org_acme',
-    isDemo: true,
-  },
-  sales_manager: {
-    id: 'usr_mgr_1',
-    email: 'sarah.mgr@adadiko.demo',
-    name: 'Sarah Chen',
-    role: 'sales_manager',
-    organizationId: 'org_acme',
-    isDemo: true,
-  },
-  admin: {
-    id: 'usr_adm_1',
-    email: 'marcus.admin@adadiko.demo',
-    name: 'Marcus Brody',
-    role: 'admin',
-    organizationId: 'org_acme',
-    isDemo: true,
-  },
-  accountant: {
-    id: 'usr_acc_1',
-    email: 'fiona.finance@adadiko.demo',
-    name: 'Fiona Gallagher',
-    role: 'accountant',
-    organizationId: 'org_acme',
-    isDemo: true,
-  },
-  storekeeper: {
-    id: 'usr_stk_1',
-    email: 'kwame.dispatch@adadiko.demo',
-    name: 'Kwame Osei',
-    role: 'storekeeper',
-    organizationId: 'org_acme',
-    isDemo: true,
-  },
-  adadiko_staff: {
-    id: 'usr_staff_1',
-    email: 'elena.hq@adadiko.io',
-    name: 'Elena Rostova',
-    role: 'adadiko_staff',
-    organizationId: 'org_adadiko_hq',
-    isDemo: true,
-  },
-}
+// No hardcoded demo accounts — users must register or sign in with their own account
+export const DEMO_USERS: Partial<Record<Role, User>> = {}

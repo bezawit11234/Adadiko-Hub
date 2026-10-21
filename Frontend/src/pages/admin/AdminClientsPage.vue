@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import SectionHeading from '@/components/common/SectionHeading.vue'
 import DataTable, { type Column } from '@/components/common/DataTable.vue'
@@ -9,44 +9,39 @@ import AppIcon from '@/components/common/AppIcon.vue'
 import SampleNotice from '@/components/common/SampleNotice.vue'
 import { formatDate } from '@/utils/format'
 
-const clients = ref([
-  {
-    id: 'org_acme',
-    name: 'Apex Wholesale Ltd',
-    plan: 'growth',
-    modules: ['sales'],
-    adminEmail: 'marcus.admin@adadiko.demo',
-    status: 'Active',
-    joinedDate: '2026-01-15',
-  },
-  {
-    id: 'org_bluenile',
-    name: 'Blue Nile Trading PLC',
-    plan: 'starter',
-    modules: ['sales'],
-    adminEmail: 'admin@bluenile.example',
-    status: 'Active',
-    joinedDate: '2026-01-28',
-  },
-  {
-    id: 'org_horizon',
-    name: 'Horizon Smart Solar Ltd',
-    plan: 'enterprise',
-    modules: ['sales', 'inventory', 'purchasing'],
-    adminEmail: 'ops@horizon-solar.example',
-    status: 'Active',
-    joinedDate: '2026-02-10',
-  },
-  {
-    id: 'org_sahara',
-    name: 'Sahara Grocers Cooperative',
-    plan: 'growth',
-    modules: ['sales'],
-    adminEmail: 'finance@saharagrocers.example',
-    status: 'Trial',
-    joinedDate: '2026-03-01',
-  },
-])
+interface ClientRow {
+  id: string
+  name: string
+  plan: string
+  modules: string[]
+  adminEmail: string
+  status: string
+  joinedDate: string
+}
+
+const clients = ref<ClientRow[]>([])
+
+onMounted(() => {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('adadiko_mock_accounts')
+      if (raw) {
+        const accounts = JSON.parse(raw)
+        clients.value = accounts.map((acc: any) => ({
+          id: acc.organization?.id || acc.user?.organizationId || 'org_client',
+          name: acc.organization?.name || `${acc.user?.name || 'Client'}'s Organization`,
+          plan: acc.organization?.plan || 'starter',
+          modules: acc.organization?.subscribedModules || ['sales'],
+          adminEmail: acc.user?.email || 'admin@example.com',
+          status: acc.organization?.status === 'active' ? 'Active' : 'Trial',
+          joinedDate: acc.organization?.createdDate || new Date().toISOString().split('T')[0],
+        }))
+      }
+    } catch {
+      clients.value = []
+    }
+  }
+})
 
 const columns: Column[] = [
   { key: 'name', label: 'Client Organization' },
@@ -71,7 +66,12 @@ const columns: Column[] = [
       </template>
     </SectionHeading>
 
-    <DataTable :columns="columns" :rows="clients">
+    <DataTable
+      :columns="columns"
+      :rows="clients"
+      empty-title="No client organizations registered yet"
+      empty-description="When clients sign up or complete checkout, their provisioned tenant records will appear here."
+    >
       <template #name="{ row }">
         <div>
           <span class="font-bold text-ink">{{ row.name }}</span>

@@ -8,6 +8,7 @@ import AppIcon from '@/components/common/AppIcon.vue'
 import Badge from '@/components/common/Badge.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import SampleNotice from '@/components/common/SampleNotice.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import { formatCurrency, formatDate } from '@/utils/format'
 
 const route = useRoute()
@@ -222,6 +223,23 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Empty State if customer not found -->
+    <div v-else-if="!loading" class="bg-white rounded-3xl border border-stone-border shadow-soft p-12 text-center">
+      <EmptyState
+        title="Customer account not found"
+        description="The requested customer profile does not exist or has been removed."
+      >
+        <template #action>
+          <RouterLink to="/app/sales/customers">
+            <AppButton variant="primary" size="sm">
+              <AppIcon name="users" :size="16" />
+              <span>Back to Customers</span>
+            </AppButton>
+          </RouterLink>
+        </template>
+      </EmptyState>
     </div>
   </PageContainer>
 </template>
