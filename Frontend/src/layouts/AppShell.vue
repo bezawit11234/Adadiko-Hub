@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter, useRoute, RouterLink, RouterView } from 'vue-router'
 import { useSession } from '@/composables/useSession'
 import { useAccess } from '@/composables/useAccess'
+import { getStoredSiteName, getStoredSlug } from '@/services/frappeHttp'
 import { ROLE_DEFINITIONS } from '@/data/roles'
 import AppIcon from '@/components/common/AppIcon.vue'
 import Badge from '@/components/common/Badge.vue'
@@ -18,6 +19,16 @@ const mobileDrawerOpen = ref(false)
 const userMenuOpen = ref(false)
 
 const currentRoleInfo = computed(() => ROLE_DEFINITIONS[currentRole.value])
+
+const workspaceAddress = computed(() => {
+  if (currentOrg.value?.siteName) return currentOrg.value.siteName
+  if (currentOrg.value?.slug) return `${currentOrg.value.slug}.localhost`
+  const stored = getStoredSiteName()
+  if (stored) return stored
+  const slug = getStoredSlug()
+  if (slug) return `${slug}.localhost`
+  return ''
+})
 
 // Navigation Items with role and module visibility logic
 interface NavItem {
@@ -182,7 +193,10 @@ function triggerCommandPalette() {
             <span class="text-sm font-bold text-white tracking-tight font-heading truncate">
               {{ currentOrg.name }}
             </span>
-            <span class="text-[10px] text-stone-bg/50 uppercase tracking-wider font-semibold">
+            <span v-if="workspaceAddress" class="text-[10px] text-signal font-mono font-medium truncate">
+              {{ workspaceAddress }}
+            </span>
+            <span v-else class="text-[10px] text-stone-bg/50 uppercase tracking-wider font-semibold">
               Adadiko Hub • Frappe v16
             </span>
           </div>
@@ -362,9 +376,16 @@ function triggerCommandPalette() {
             <AppIcon name="command" :size="20" />
           </button>
 
-          <!-- Current Organization & Demo badge -->
+          <!-- Current Organization & Workspace Address -->
           <div class="hidden sm:flex items-center gap-2 text-xs">
             <span class="font-bold text-ink">{{ currentOrg.name }}</span>
+            <span
+              v-if="workspaceAddress"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-muted text-ink font-mono text-[11px] border border-stone-border"
+            >
+              <AppIcon name="building" :size="12" className="text-signal" />
+              <span>{{ workspaceAddress }}</span>
+            </span>
             <span class="text-stone-border">•</span>
             <span class="text-ink-muted">Plan: <strong class="uppercase text-ink">{{ currentOrg.plan }}</strong></span>
             <span class="text-stone-border">•</span>

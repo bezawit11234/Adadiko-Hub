@@ -15,11 +15,15 @@ export function useAccess() {
   const { currentRole, currentOrg } = useSession()
 
   /**
-   * Check if the active organization has bought and enabled the given module
+   * Check if the active organization has bought and enabled the given module.
+   * Maps module keys in one canonical place (lowercase, trimmed).
    */
-  function canUseModule(moduleKey: ModuleKey): boolean {
-    if (!currentOrg.value) return false
-    return currentOrg.value.subscribedModules.includes(moduleKey)
+  function canUseModule(moduleKey: string): boolean {
+    if (!currentOrg.value || !currentOrg.value.subscribedModules) return false
+    const normalized = moduleKey.toLowerCase().trim()
+    return currentOrg.value.subscribedModules.some(
+      (m) => m.toLowerCase().trim() === normalized
+    )
   }
 
   /**

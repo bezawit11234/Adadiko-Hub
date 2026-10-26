@@ -2,19 +2,78 @@
  * Adadiko Hub Frappe HTTP Helper
  * Handles REST/RPC calls to ERPNext / Frappe v16 backend.
  * Provides credentials handling, CSRF token attachment, {message}/{data} unwrapping,
- * and comprehensive ERPNext error parsing from _server_messages.
+ * multi-tenant X-Frappe-Site-Name header dispatching, and comprehensive error parsing.
  */
 
 import type { ApiResult } from '@/types'
 
+const STORAGE_KEY_SITE = 'adadiko_current_site'
+const STORAGE_KEY_SLUG = 'adadiko_current_slug'
+const STORAGE_KEY_CSRF = 'adadiko_csrf_token'
+
 let cachedCsrfToken: string | null = null
+
+export function getStoredSiteName(): string | null {
+  if (typeof localStorage !== 'undefined') {
+    return localStorage.getItem(STORAGE_KEY_SITE)
+  }
+  return null
+}
+
+export function setStoredSiteName(site: string | null): void {
+  if (typeof localStorage !== 'undefined') {
+    if (site) {
+      localStorage.setItem(STORAGE_KEY_SITE, site.trim().toLowerCase())
+    } else {
+      localStorage.removeItem(STORAGE_KEY_SITE)
+    }
+  }
+}
+
+export function getStoredSlug(): string | null {
+  if (typeof localStorage !== 'undefined') {
+    return localStorage.getItem(STORAGE_KEY_SLUG)
+  }
+  return null
+}
+
+export function setStoredSlug(slug: string | null): void {
+  if (typeof localStorage !== 'undefined') {
+    if (slug) {
+      localStorage.setItem(STORAGE_KEY_SLUG, slug.trim().toLowerCase())
+    } else {
+      localStorage.removeItem(STORAGE_KEY_SLUG)
+    }
+  }
+}
+
+export function clearStoredSite(): void {
+  setStoredSiteName(null)
+  setStoredSlug(null)
+  setCsrfToken(null)
+}
 
 export function setCsrfToken(token: string | null): void {
   cachedCsrfToken = token
+  if (typeof sessionStorage !== 'undefined') {
+    if (token) {
+      sessionStorage.setItem(STORAGE_KEY_CSRF, token)
+    } else {
+      sessionStorage.removeItem(STORAGE_KEY_CSRF)
+    }
+  }
 }
 
 export function getCsrfToken(): string | null {
   if (cachedCsrfToken) return cachedCsrfToken
+
+  if (typeof sessionStorage !== 'undefined') {
+    const stored = sessionStorage.getItem(STORAGE_KEY_CSRF)
+    if (stored) {
+      cachedCsrfToken = stored
+      return cachedCsrfToken
+    }
+  }
 
   // Try extracting from document cookies if running in browser
   if (typeof document !== 'undefined') {
@@ -46,7 +105,11 @@ export function extractFrappeErrorMessage(json: any, fallbackStatus = 'Request f
         const first = parsedOuter[0]
         const parsedInner = typeof first === 'string' ? JSON.parse(first) : first
         if (parsedInner?.message) {
-          return stripHtml(parsedInner.message)
+          const msg = stripHtml(parsedInner.message)
+          if (msg.includes('Site') && msg.includes('does not exist')) {
+            return 'Workspace not found. Please verify your workspace address.'
+          }
+          return msg
         }
       }
     } catch {
@@ -56,17 +119,35 @@ export function extractFrappeErrorMessage(json: any, fallbackStatus = 'Request f
 
   // 2. Check _error_message
   if (json._error_message) {
-    return stripHtml(json._error_message)
+    const msg = stripHtml(json._error_message)
+    if (msg.includes('Site') && msg.includes('does not exist')) {
+      return 'Workspace not found. Please verify your workspace address.'
+    }
+    return msg
   }
 
   // 3. Check message property if it's an error string
-  if (typeof json.message === 'string' && json.exc_type) {
-    return stripHtml(json.message)
+  if (typeof json.message === 'string') {
+    const msg = stripHtml(json.message)
+    if (msg.toLowerCase().includes('invalid login credentials')) {
+      return 'Incorrect email or password. Please verify your credentials.'
+    }
+    if (msg.includes('Site') && msg.includes('does not exist')) {
+      return 'Workspace not found. Please verify your workspace address.'
+    }
+    if (json.exc_type) return msg
   }
 
   // 4. Check exception string
   if (typeof json.exception === 'string') {
-    const parts = json.exception.split(':')
+    const exc = json.exception
+    if (exc.includes('DoesNotExistError') && exc.includes('Site')) {
+      return 'Workspace not found. Please verify your workspace address.'
+    }
+    if (exc.includes('AuthenticationError')) {
+      return 'Incorrect email or password. Please verify your credentials.'
+    }
+    const parts = exc.split(':')
     return parts.length > 1 ? parts.slice(1).join(':').trim() : parts[0]
   }
 
@@ -88,9 +169,26 @@ export async function frappeFetch<T = any>(
       headers['Content-Type'] = 'application/json'
     }
 
+    // Dynamic Multi-Tenant Site Routing:
+    // request_workspace, get_workspace_status, and retry_workspace target control.localhost.
+    // All other tenant operations target the company's dedicated site stored in local storage.
+    const isControlEndpoint =
+      path.includes('request_workspace') ||
+      path.includes('get_workspace_status') ||
+      path.includes('retry_workspace')
+
+    if (!headers['X-Frappe-Site-Name']) {
+      if (isControlEndpoint) {
+        headers['X-Frappe-Site-Name'] = 'control.localhost'
+      } else {
+        const storedSite = getStoredSiteName()
+        headers['X-Frappe-Site-Name'] = storedSite || 'control.localhost'
+      }
+    }
+
     // Attach CSRF token on state-changing requests
     const csrf = getCsrfToken()
-    if (csrf && method !== 'GET' && method !== 'HEAD') {
+    if (csrf && method !== 'GET' && method !== 'HEAD' && !headers['X-Frappe-CSRF-Token']) {
       headers['X-Frappe-CSRF-Token'] = csrf
     }
 
@@ -118,6 +216,11 @@ export async function frappeFetch<T = any>(
 
     if (!json) {
       return { ok: true, data: undefined as unknown as T }
+    }
+
+    // Update CSRF token if returned in message or session payload
+    if (json.message?.csrf_token) {
+      setCsrfToken(json.message.csrf_token)
     }
 
     // Unpack Frappe message or resource data

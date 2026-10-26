@@ -102,6 +102,7 @@ export function useSession() {
       const res = await authApi.getSession()
       if (res.ok && res.data) {
         setUser(res.data)
+        currentOrg.value = loadStoredOrg()
         isSessionChecked.value = true
         return res.data
       } else {
@@ -131,9 +132,13 @@ export function useSession() {
     setOrganization(emptyOrg)
   }
 
-  async function signIn(email: string, password = ''): Promise<{ ok: boolean; error?: string; data?: User }> {
+  async function signIn(
+    email: string,
+    password = '',
+    workspaceSlug?: string,
+  ): Promise<{ ok: boolean; error?: string; data?: User }> {
     const authApi = getAuthApi()
-    const res = await authApi.signIn(email, password)
+    const res = await authApi.signIn(email, password, workspaceSlug)
     if (res.ok && res.data) {
       setUser(res.data)
       currentOrg.value = loadStoredOrg()

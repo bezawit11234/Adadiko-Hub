@@ -5,7 +5,15 @@
  */
 import type { ApiResult, User, Role, Organization, ModuleKey } from '@/types'
 import { ROLE_DEFINITIONS } from '@/data/roles'
-import { frappeFetch, setCsrfToken } from './frappeHttp'
+import {
+  frappeFetch,
+  setCsrfToken,
+  getStoredSiteName,
+  setStoredSiteName,
+  getStoredSlug,
+  setStoredSlug,
+  clearStoredSite,
+} from './frappeHttp'
 
 function erpnextRoleFor(role: Role): string {
   return ROLE_DEFINITIONS[role]?.erpnextRole || 'Sales User'
@@ -36,7 +44,7 @@ export interface RegisterOptions {
 }
 
 export interface AuthApi {
-  signIn(email: string, password?: string): Promise<ApiResult<User>>
+  signIn(email: string, password?: string, workspaceSlug?: string): Promise<ApiResult<User>>
   register(
     name: string,
     email: string,
@@ -131,7 +139,7 @@ function saveStoredAccounts(accounts: MockAccount[]): void {
 }
 
 class MockAuthApi implements AuthApi {
-  async signIn(email: string, password = ''): Promise<ApiResult<User>> {
+  async signIn(email: string, password = '', workspaceSlug = ''): Promise<ApiResult<User>> {
     const accounts = getStoredAccounts()
     const normalizedEmail = email.trim().toLowerCase()
     const account = accounts.find((a) => a.user.email.toLowerCase() === normalizedEmail)
@@ -148,6 +156,14 @@ class MockAuthApi implements AuthApi {
     }
     if (!account.password || account.password !== password) {
       return { ok: false, error: 'Incorrect password. Please verify your credentials.' }
+    }
+
+    if (workspaceSlug) {
+      const cleanSlug = workspaceSlug.replace(/\.localhost$/, '').trim().toLowerCase()
+      setStoredSlug(cleanSlug)
+      setStoredSiteName(`${cleanSlug}.localhost`)
+      account.organization.slug = cleanSlug
+      account.organization.siteName = `${cleanSlug}.localhost`
     }
 
     writeSession(account.user, account.organization)
@@ -211,6 +227,7 @@ class MockAuthApi implements AuthApi {
 
   async signOut(): Promise<ApiResult<void>> {
     clearSessionStorage()
+    clearStoredSite()
     return { ok: true, data: undefined }
   }
 
@@ -316,27 +333,59 @@ class MockAuthApi implements AuthApi {
 }
 
 class FrappeAuthApi implements AuthApi {
-  async signIn(email: string, password = ''): Promise<ApiResult<User>> {
+  async signIn(email: string, password = '', workspaceSlug?: string): Promise<ApiResult<User>> {
+    let slug = (workspaceSlug || '').trim().toLowerCase()
+    if (!slug) {
+      slug = getStoredSlug() || ''
+    }
+    slug = slug.replace(/\.localhost$/, '').trim().toLowerCase()
+
+    if (!slug) {
+      return { ok: false, error: 'Please enter your workspace address (e.g. alphatrading).' }
+    }
+
+    const targetSite = `${slug}.localhost`
+    setStoredSiteName(targetSite)
+    setStoredSlug(slug)
+
     const loginRes = await frappeFetch<any>('/api/method/login', {
       method: 'POST',
-      body: JSON.stringify({ usr: email, pwd: password }),
+      headers: {
+        'X-Frappe-Site-Name': targetSite,
+      },
+      body: JSON.stringify({ usr: email.trim(), pwd: password }),
     })
 
     if (!loginRes.ok) {
-      return { ok: false, error: loginRes.error || 'Invalid credentials or user disabled.' }
+      return {
+        ok: false,
+        error: loginRes.error || 'Incorrect email or password. Please verify your credentials.',
+      }
     }
 
     return this.getSession()
   }
 
   async getSession(): Promise<ApiResult<User>> {
+    const currentSite = getStoredSiteName()
+    if (!currentSite) {
+      return { ok: false, error: 'No workspace configured.' }
+    }
+
     const res = await frappeFetch<{
       user: string
       full_name: string
       roles: string[]
       modules: any
       csrf_token?: string
-    }>('/api/method/adadiko_hub.api.get_session')
+      company_name?: string
+      site_name?: string
+      plan_name?: string
+    }>('/api/method/adadiko_hub.api.get_session', {
+      headers: {
+        'X-Frappe-Site-Name': currentSite,
+      },
+    })
 
     if (!res.ok || !res.data) {
       return { ok: false, error: res.error || 'Failed to fetch session.' }
@@ -352,21 +401,53 @@ class FrappeAuthApi implements AuthApi {
     }
 
     const role = mapFrappeRolesToRole(res.data.roles || [])
+    const slug = getStoredSlug() || currentSite.replace(/\.localhost$/, '')
     const user: User = {
       id: res.data.user,
       email: res.data.user,
       name: res.data.full_name || res.data.user.split('@')[0],
       role,
-      organizationId: 'org_acme',
+      organizationId: `org_${slug}`,
       isDemo: false,
     }
+
+    // Determine subscribed modules and plan tier from backend Hub Plan
+    const rawModules = Array.isArray(res.data.modules) ? res.data.modules : []
+    const modules: ModuleKey[] = rawModules.length > 0 ? (rawModules as ModuleKey[]) : ['sales']
+
+    let planTier: Organization['plan'] = 'starter'
+    const planName = (res.data.plan_name || '').toLowerCase()
+    if (planName.includes('full') || modules.length >= 4) {
+      planTier = 'enterprise'
+    } else if (planName.includes('inventory') || modules.length > 1) {
+      planTier = 'growth'
+    }
+
+    const org: Organization = {
+      id: `org_${slug}`,
+      name: res.data.company_name || slug.toUpperCase(),
+      slug,
+      siteName: res.data.site_name || currentSite,
+      plan: planTier,
+      billingCycle: 'monthly',
+      subscribedModules: modules,
+      createdDate: new Date().toISOString().split('T')[0],
+      status: 'active',
+    }
+
+    writeSession(user, org)
 
     return { ok: true, data: user }
   }
 
   async signOut(): Promise<ApiResult<void>> {
-    await frappeFetch('/api/method/logout', { method: 'POST' })
-    setCsrfToken(null)
+    try {
+      await frappeFetch('/api/method/logout', { method: 'POST' })
+    } catch {
+      // ignore
+    }
+    clearSessionStorage()
+    clearStoredSite()
     return { ok: true, data: undefined }
   }
 

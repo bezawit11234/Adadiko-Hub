@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useSession } from '@/composables/useSession'
+import { getStoredSlug } from '@/services/frappeHttp'
 import { ROLE_DEFINITIONS } from '@/data/roles'
 import AppButton from '@/components/common/AppButton.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
@@ -12,21 +13,29 @@ const router = useRouter()
 const route = useRoute()
 const { signIn, apiMode, setApiMode } = useSession()
 
-const email = ref('')
+const workspaceSlug = ref(
+  (route.query.workspace as string) || getStoredSlug() || ''
+)
+const email = ref((route.query.email as string) || '')
 const password = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
 
 async function handleSignIn() {
+  const cleanSlug = workspaceSlug.value.replace(/\.localhost$/, '').trim().toLowerCase()
+  if (!cleanSlug) {
+    errorMessage.value = 'Enter your workspace name (e.g. gammatools or alphatrading).'
+    return
+  }
   if (!email.value.trim() || !password.value) {
-    errorMessage.value = 'Enter the work email and password you created when you set up the workspace.'
+    errorMessage.value = 'Enter the work email and password for your workspace.'
     return
   }
 
   loading.value = true
   errorMessage.value = ''
   try {
-    const res = await signIn(email.value.trim(), password.value)
+    const res = await signIn(email.value.trim(), password.value, cleanSlug)
     if (res.ok && res.data) {
       const nextUrl =
         (route.query.next as string) ||
@@ -34,7 +43,7 @@ async function handleSignIn() {
         '/app/sales/dashboard'
       router.push(nextUrl)
     } else {
-      errorMessage.value = res.error || 'Could not sign in. Check your email and password.'
+      errorMessage.value = res.error || 'Could not sign in. Check your workspace, email, and password.'
     }
   } finally {
     loading.value = false
@@ -75,14 +84,46 @@ async function handleSignIn() {
         Sign in to your workspace
       </h2>
       <p class="text-xs text-ink-muted">
-        <span v-if="apiMode === 'frappe'">Connected to Frappe / ERPNext v16 backend.</span>
+        <span v-if="apiMode === 'frappe'">Connected to isolated multi-tenant ERPNext sites.</span>
         <span v-else>Sign in with your workspace credentials.</span>
       </p>
     </div>
 
+    <div
+      v-if="errorMessage"
+      class="p-3 rounded-xl bg-status-red/10 border border-status-red/30 text-xs text-status-red flex items-start gap-2"
+    >
+      <AppIcon name="alert-circle" :size="16" className="shrink-0 mt-0.5" />
+      <span>{{ errorMessage }}</span>
+    </div>
+
     <form class="space-y-4" @submit.prevent="handleSignIn">
-      <Field label="Work Email" required :error="errorMessage">
-        <TextField v-model="email" type="email" placeholder="name@company.com">
+      <Field
+        label="Workspace"
+        required
+        hint="Your company subdomain (e.g. gammatools)"
+      >
+        <TextField
+          v-model="workspaceSlug"
+          placeholder="your-company"
+          autocomplete="organization"
+        >
+          <template #prefix>
+            <AppIcon name="building" :size="16" />
+          </template>
+          <template #suffix>
+            <span class="text-xs font-mono text-ink-muted select-none">.localhost</span>
+          </template>
+        </TextField>
+      </Field>
+
+      <Field label="Work Email" required>
+        <TextField
+          v-model="email"
+          type="email"
+          placeholder="name@company.com"
+          autocomplete="email"
+        >
           <template #prefix>
             <AppIcon name="mail" :size="16" />
           </template>
@@ -95,7 +136,12 @@ async function handleSignIn() {
             Forgot password?
           </RouterLink>
         </template>
-        <TextField v-model="password" type="password" placeholder="••••••••">
+        <TextField
+          v-model="password"
+          type="password"
+          placeholder="••••••••"
+          autocomplete="current-password"
+        >
           <template #prefix>
             <AppIcon name="lock" :size="16" />
           </template>

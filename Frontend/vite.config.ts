@@ -24,7 +24,7 @@ export default defineConfig({
       // Forward every /api request to ERPNext so login cookies work
       '/api': {
         target: 'http://127.0.0.1:8000',
-        headers: { 'X-Frappe-Site-Name': 'development.localhost' },
+        changeOrigin: true,
       },
     },
   },
