@@ -1,0 +1,9 @@
+{
+  "company_name": "SpeedTest Ltd",
+  "slug": "speedtest",
+  "contact_name": "Speed Admin",
+  "email": "admin@speedtest.com",
+  "password": "SpeedPassword123!",
+  "plan": "Sales",
+  "modules": ["sales"]
+}

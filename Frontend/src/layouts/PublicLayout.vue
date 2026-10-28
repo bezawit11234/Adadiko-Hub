@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 import AppButton from '@/components/common/AppButton.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
+import ThemeToggle from '@/components/common/ThemeToggle.vue'
 import CommandPalette from '@/components/layout/CommandPalette.vue'
 
 const mobileMenuOpen = ref(false)
@@ -60,6 +61,7 @@ const navLinks = [
 
         <!-- Actions -->
         <div class="hidden md:flex items-center gap-3">
+          <ThemeToggle />
           <RouterLink to="/sign-in">
             <AppButton variant="ghost" size="sm">
               Sign In
@@ -95,6 +97,10 @@ const navLinks = [
           {{ link.name }}
         </RouterLink>
         <div class="pt-3 border-t border-stone-border flex flex-col gap-2">
+          <div class="flex items-center justify-between py-1">
+            <span class="text-xs font-medium text-ink-muted">Appearance</span>
+            <ThemeToggle size="sm" showLabel />
+          </div>
           <RouterLink to="/sign-in" @click="mobileMenuOpen = false">
             <AppButton variant="outline" size="sm" block>
               Sign In

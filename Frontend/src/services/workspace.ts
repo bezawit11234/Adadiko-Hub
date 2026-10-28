@@ -77,6 +77,17 @@ export async function getWorkspaceStatus(slug: string): Promise<ApiResult<Worksp
 }
 
 export async function retryWorkspace(slug: string): Promise<ApiResult<{ status: string; slug: string }>> {
+  const mode = localStorage.getItem('adadiko_api_mode') || import.meta.env.VITE_API_MODE
+  if (mode === 'mock') {
+    return {
+      ok: true,
+      data: {
+        status: 'Provisioning',
+        slug,
+      },
+    }
+  }
+
   return frappeFetch<{ status: string; slug: string }>(
     '/api/method/adadiko_hub.api.retry_workspace',
     {

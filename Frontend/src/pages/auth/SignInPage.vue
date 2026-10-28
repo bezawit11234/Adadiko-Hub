@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useSession } from '@/composables/useSession'
 import { getStoredSlug } from '@/services/frappeHttp'
+import { consumeCheckoutSessionPassword } from '@/services/auth'
 import { ROLE_DEFINITIONS } from '@/data/roles'
 import AppButton from '@/components/common/AppButton.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
@@ -20,6 +21,16 @@ const email = ref((route.query.email as string) || '')
 const password = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
+
+onMounted(() => {
+  const sessionPwd = consumeCheckoutSessionPassword()
+  if (sessionPwd) {
+    password.value = sessionPwd
+    if (workspaceSlug.value && email.value) {
+      handleSignIn()
+    }
+  }
+})
 
 async function handleSignIn() {
   const cleanSlug = workspaceSlug.value.replace(/\.localhost$/, '').trim().toLowerCase()

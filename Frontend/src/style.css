@@ -12,6 +12,15 @@
     --signal-orange-subtle: #FDF2E9;
   }
 
+  .dark {
+    --bg-stone: #0B131E;
+    --border-stone: #1E3146;
+    --text-navy: #F1F5F9;
+    --signal-orange: #F08A3C;
+    --signal-orange-hover: #FF9B54;
+    --signal-orange-subtle: rgba(240, 138, 60, 0.15);
+  }
+
   html {
     font-family: 'DM Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
     color: #14283D;
@@ -20,16 +29,139 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  html.dark {
+    color: #F1F5F9;
+    background-color: #0B131E;
+    color-scheme: dark;
+  }
+
   body {
     min-height: 100vh;
     background-color: #F4F1EC;
     color: #14283D;
   }
 
+  html.dark body {
+    background-color: #0B131E;
+    color: #F1F5F9;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Bricolage Grotesque', sans-serif;
     letter-spacing: -0.02em;
   }
+}
+
+/* ========================================================
+   ATTRACTIVE MODERN DARK THEME UTILITIES & OVERRIDES
+   ======================================================== */
+html.dark .bg-stone-bg {
+  background-color: #0B131E !important;
+}
+
+html.dark .bg-stone-subtle {
+  background-color: #0E1825 !important;
+}
+
+html.dark .bg-stone-muted {
+  background-color: #162536 !important;
+}
+
+html.dark .bg-stone-surface,
+html.dark .bg-white {
+  background-color: #111C2A !important;
+}
+
+html.dark .bg-stone-bg\/90 {
+  background-color: rgba(11, 19, 30, 0.9) !important;
+}
+
+html.dark .bg-white\/80 {
+  background-color: rgba(17, 28, 42, 0.85) !important;
+}
+
+/* Borders */
+html.dark .border-stone-border,
+html.dark .border-stone-border\/60,
+html.dark .border-stone-border\/70,
+html.dark .border-stone-border\/80 {
+  border-color: #1E3146 !important;
+}
+
+html.dark .divide-stone-border > :not([hidden]) ~ :not([hidden]) {
+  border-color: #1E3146 !important;
+}
+
+/* Typography in Dark Mode */
+html.dark .text-ink {
+  color: #F1F5F9 !important;
+}
+
+html.dark .text-ink-navy {
+  color: #F8FAFC !important;
+}
+
+html.dark .text-ink-muted {
+  color: #94A3B8 !important;
+}
+
+html.dark .text-ink-light {
+  color: #64748B !important;
+}
+
+/* Form Inputs, Textarea, Selects */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+html.dark textarea,
+html.dark select {
+  background-color: #0E1825 !important;
+  color: #F1F5F9 !important;
+  border-color: #1E3146 !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748B !important;
+}
+
+/* Dark Card & Surface Shadows */
+html.dark .shadow-card,
+html.dark .shadow-soft {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(30, 49, 70, 0.65) !important;
+}
+
+html.dark .shadow-modal {
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(30, 49, 70, 0.85) !important;
+}
+
+/* Tables in Dark Mode */
+html.dark thead {
+  background-color: #0E1825 !important;
+}
+
+html.dark thead th {
+  color: #94A3B8 !important;
+  border-color: #1E3146 !important;
+}
+
+html.dark tbody tr {
+  border-color: #1E3146 !important;
+}
+
+html.dark tbody tr:hover {
+  background-color: rgba(22, 37, 54, 0.6) !important;
+}
+
+/* Signal Subtle Pill/Highlight */
+html.dark .bg-signal-subtle {
+  background-color: rgba(240, 138, 60, 0.15) !important;
+}
+
+/* Dark Scrollbar */
+html.dark ::-webkit-scrollbar-thumb {
+  background: #1E3146;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #2D4866;
 }
 
 .num-tabular {

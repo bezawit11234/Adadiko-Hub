@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
+import ThemeToggle from '@/components/common/ThemeToggle.vue'
 import CommandPalette from '@/components/layout/CommandPalette.vue'
 </script>
 
@@ -16,9 +17,12 @@ import CommandPalette from '@/components/layout/CommandPalette.vue'
         </span>
       </RouterLink>
 
-      <RouterLink to="/" class="text-xs font-semibold text-ink-muted hover:text-ink">
-        ← Back to website
-      </RouterLink>
+      <div class="flex items-center gap-3">
+        <ThemeToggle size="sm" />
+        <RouterLink to="/" class="text-xs font-semibold text-ink-muted hover:text-ink">
+          ← Back to website
+        </RouterLink>
+      </div>
     </div>
 
     <!-- Centered Form Container -->

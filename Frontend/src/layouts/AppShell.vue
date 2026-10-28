@@ -8,6 +8,7 @@ import { ROLE_DEFINITIONS } from '@/data/roles'
 import AppIcon from '@/components/common/AppIcon.vue'
 import Badge from '@/components/common/Badge.vue'
 import Toast from '@/components/common/Toast.vue'
+import ThemeToggle from '@/components/common/ThemeToggle.vue'
 import CommandPalette from '@/components/layout/CommandPalette.vue'
 
 const router = useRouter()
@@ -433,6 +434,9 @@ function triggerCommandPalette() {
           >
             <AppIcon name="external-link" :size="16" />
           </RouterLink>
+
+          <!-- Theme Toggle (Light / Dark) -->
+          <ThemeToggle />
         </div>
       </header>
 

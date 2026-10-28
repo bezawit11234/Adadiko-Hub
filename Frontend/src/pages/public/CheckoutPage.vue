@@ -5,6 +5,7 @@ import { usePlanSelection } from '@/composables/usePlanSelection'
 import { useSession } from '@/composables/useSession'
 import { requestWorkspace, getWorkspaceStatus, retryWorkspace } from '@/services/workspace'
 import { setStoredSiteName, setStoredSlug } from '@/services/frappeHttp'
+import { setCheckoutSessionPassword } from '@/services/auth'
 import AppButton from '@/components/common/AppButton.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import Badge from '@/components/common/Badge.vue'
@@ -53,11 +54,59 @@ const pollingStatus = ref<'Pending' | 'Provisioning' | 'Ready' | 'Failed'>('Pend
 const statusMessage = ref('')
 const retryLoading = ref(false)
 const pollAttempts = ref(0)
+const elapsedSeconds = ref(0)
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let elapsedTimer: ReturnType<typeof setInterval> | null = null
+
+function startElapsedTimer() {
+  stopElapsedTimer()
+  elapsedSeconds.value = 0
+  elapsedTimer = setInterval(() => {
+    elapsedSeconds.value += 1
+  }, 1000)
+}
+
+function stopElapsedTimer() {
+  if (elapsedTimer) {
+    clearInterval(elapsedTimer)
+    elapsedTimer = null
+  }
+}
+
+const formattedElapsedTime = computed(() => {
+  const m = Math.floor(elapsedSeconds.value / 60)
+  const s = elapsedSeconds.value % 60
+  if (m === 0) return `${s}s`
+  return `${m}m ${s.toString().padStart(2, '0')}s`
+})
+
+interface ProvisioningStep {
+  id: number
+  label: string
+  detail: string
+}
+
+const PROVISIONING_STEPS: ProvisioningStep[] = [
+  { id: 1, label: 'Workspace Registration', detail: 'Allocating tenant records on control cluster' },
+  { id: 2, label: 'Database Initialization', detail: 'Creating isolated MariaDB database & user credentials' },
+  { id: 3, label: 'ERPNext & Hub Installation', detail: 'Installing ERPNext v16 distribution schema & Adadiko Hub' },
+  { id: 4, label: 'Company & Admin Setup', detail: 'Configuring standard chart of accounts & admin credentials' },
+  { id: 5, label: 'Security & Activation', detail: 'Synchronizing plan modules, CSRF security & health check' },
+]
+
+const currentProgressStepIndex = computed(() => {
+  if (pollingStatus.value === 'Ready') return 5
+  if (pollingStatus.value === 'Pending') return 1
+  if (elapsedSeconds.value < 45) return 2
+  if (elapsedSeconds.value < 95) return 3
+  if (elapsedSeconds.value < 135) return 4
+  return 5
+})
+
 // If provisioning takes longer than this many polls (~4 min at 3s), surface a
 // Retry button so a stuck workspace (e.g. a previous run that died) can be
 // re-triggered from the UI instead of waiting forever.
 const stuckThreshold = 80
-let pollTimer: ReturnType<typeof setInterval> | null = null
 
 // Auto-derive slug from company name unless user explicitly edited it
 watch(orgName, (val) => {
@@ -141,8 +190,9 @@ async function startProvisioning() {
   stepError.value = ''
   currentStep.value = 5
   pollAttempts.value = 0
-  pollingStatus.value = 'Pending'
+  pollingStatus.value = 'Provisioning'
   statusMessage.value = 'Submitting workspace registration to Adadiko Hub...'
+  startElapsedTimer()
 
   // Remember in localStorage so screen survives page refresh
   if (typeof localStorage !== 'undefined') {
@@ -161,6 +211,7 @@ async function startProvisioning() {
   })
 
   if (!res.ok) {
+    stopElapsedTimer()
     pollingStatus.value = 'Failed'
     statusMessage.value = res.error || 'Failed to submit workspace registration.'
     return
@@ -189,9 +240,15 @@ function startStatusPolling(targetSlug: string) {
 
     if (data.status === 'Ready') {
       stopStatusPolling()
+      stopElapsedTimer()
       const siteName = data.site_name || `${targetSlug}.localhost`
       setStoredSiteName(siteName)
       setStoredSlug(targetSlug)
+
+      // Store password strictly in memory for one-shot automatic sign-in
+      if (password.value) {
+        setCheckoutSessionPassword(password.value)
+      }
 
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem('adadiko_pending_slug')
@@ -202,12 +259,13 @@ function startStatusPolling(targetSlug: string) {
           path: '/sign-in',
           query: {
             workspace: targetSlug,
-            email: adminEmail.value || localStorage.getItem('adadiko_pending_email') || '',
+            email: adminEmail.value || (typeof localStorage !== 'undefined' ? localStorage.getItem('adadiko_pending_email') : '') || '',
           },
         })
-      }, 1500)
+      }, 1200)
     } else if (data.status === 'Failed') {
       stopStatusPolling()
+      stopElapsedTimer()
     }
   }
 
@@ -225,10 +283,14 @@ function stopStatusPolling() {
 
 function goToSignIn() {
   stopStatusPolling()
+  stopElapsedTimer()
   const targetSlug = slug.value || (typeof localStorage !== 'undefined' ? localStorage.getItem('adadiko_pending_slug') : '') || ''
   const siteName = `${targetSlug}.localhost`
   setStoredSiteName(siteName)
   setStoredSlug(targetSlug)
+  if (password.value) {
+    setCheckoutSessionPassword(password.value)
+  }
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('adadiko_pending_slug')
   }
@@ -248,14 +310,16 @@ async function handleRetry() {
   retryLoading.value = true
   stepError.value = ''
   pollAttempts.value = 0
-  pollingStatus.value = 'Pending'
+  pollingStatus.value = 'Provisioning'
   statusMessage.value = 'Re-queuing provisioning...'
+  startElapsedTimer()
 
   try {
     const res = await retryWorkspace(targetSlug)
     if (res.ok) {
       startStatusPolling(targetSlug)
     } else {
+      stopElapsedTimer()
       pollingStatus.value = 'Failed'
       statusMessage.value = res.error || 'Could not retry provisioning.'
     }
@@ -266,6 +330,7 @@ async function handleRetry() {
 
 function resetRegistration() {
   stopStatusPolling()
+  stopElapsedTimer()
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('adadiko_pending_slug')
     localStorage.removeItem('adadiko_pending_email')
@@ -285,6 +350,7 @@ onMounted(() => {
       adminEmail.value = localStorage.getItem('adadiko_pending_email') || ''
       orgName.value = localStorage.getItem('adadiko_pending_company') || savedSlug
       currentStep.value = 5
+      startElapsedTimer()
       startStatusPolling(savedSlug)
     }
   }
@@ -292,6 +358,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopStatusPolling()
+  stopElapsedTimer()
 })
 </script>
 
@@ -636,6 +703,14 @@ onUnmounted(() => {
           >
             Status: {{ pollingStatus }}
           </Badge>
+          <Badge
+            v-if="pollingStatus === 'Pending' || pollingStatus === 'Provisioning'"
+            variant="neutral"
+            size="sm"
+            className="font-mono text-signal"
+          >
+            Elapsed: {{ formattedElapsedTime }}
+          </Badge>
         </div>
 
         <h3 class="text-2xl font-black text-ink font-heading">
@@ -655,17 +730,77 @@ onUnmounted(() => {
 
         <p class="text-xs text-ink-muted leading-relaxed max-w-sm mx-auto">
           <template v-if="pollingStatus === 'Pending'">
-            Your registration is queued on the control server. Waiting for resources to begin creating your dedicated ERPNext site.
+            Your registration is queued on the control server. Provisioning will start automatically.
           </template>
           <template v-else-if="pollingStatus === 'Provisioning'">
-            Bench is currently creating a dedicated database, installing ERPNext and Adadiko Hub, and initializing your company chart of accounts. This takes 1 to 2 minutes.
+            Bench is currently creating an isolated database, installing ERPNext and Adadiko Hub, and initializing your company chart of accounts.
           </template>
           <template v-else-if="pollingStatus === 'Ready'">
             Your dedicated workspace is ready! Redirecting you to sign in...
           </template>
           <template v-else-if="pollingStatus === 'Failed'">
-            {{ statusMessage || 'An unexpected error occurred during site setup. You can retry provisioning or start over.' }}
+            An error occurred while provisioning your workspace. See error details below and click Retry.
           </template>
+        </p>
+      </div>
+
+      <!-- Real Steps Checklist -->
+      <div class="text-left bg-stone-bg/60 p-4 rounded-2xl border border-stone-border space-y-2.5">
+        <div class="text-xs font-bold text-ink flex items-center justify-between pb-1 border-b border-stone-border">
+          <span class="flex items-center gap-1.5">
+            <AppIcon name="cpu" :size="14" className="text-signal" />
+            Provisioning Pipeline
+          </span>
+          <span class="text-ink-muted font-mono font-normal text-[11px]">
+            {{ pollingStatus === 'Ready' ? 'Completed' : formattedElapsedTime }}
+          </span>
+        </div>
+        <div
+          v-for="st in PROVISIONING_STEPS"
+          :key="st.id"
+          class="flex items-start gap-2.5 text-xs transition-opacity"
+          :class="st.id <= currentProgressStepIndex ? 'opacity-100' : 'opacity-40'"
+        >
+          <div class="shrink-0 mt-0.5">
+            <div
+              v-if="pollingStatus === 'Ready' || st.id < currentProgressStepIndex"
+              class="w-4 h-4 rounded-full bg-status-green/20 text-status-green flex items-center justify-center"
+            >
+              <AppIcon name="check" :size="10" />
+            </div>
+            <div
+              v-else-if="pollingStatus === 'Failed' && st.id === currentProgressStepIndex"
+              class="w-4 h-4 rounded-full bg-status-red/20 text-status-red flex items-center justify-center"
+            >
+              <AppIcon name="x" :size="10" />
+            </div>
+            <div
+              v-else-if="st.id === currentProgressStepIndex"
+              class="w-4 h-4 rounded-full border-2 border-signal border-t-transparent animate-spin"
+            />
+            <div
+              v-else
+              class="w-4 h-4 rounded-full bg-stone-border/40"
+            />
+          </div>
+          <div class="flex-1">
+            <p class="font-bold text-ink leading-tight">{{ st.label }}</p>
+            <p class="text-[11px] text-ink-muted leading-tight mt-0.5">{{ st.detail }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real Failed Message Box -->
+      <div
+        v-if="pollingStatus === 'Failed' && statusMessage"
+        class="text-left p-3.5 rounded-2xl bg-status-red/10 border border-status-red/30 space-y-1 text-xs"
+      >
+        <div class="font-bold text-status-red flex items-center gap-1.5">
+          <AppIcon name="alert-circle" :size="14" />
+          <span>Provisioning Error Details</span>
+        </div>
+        <p class="text-[11px] text-ink-muted font-mono whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
+          {{ statusMessage }}
         </p>
       </div>
 

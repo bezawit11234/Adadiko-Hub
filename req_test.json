@@ -1,0 +1,9 @@
+{
+  "company_name": "Apex Tools",
+  "slug": "apextools",
+  "contact_name": "Apex Admin",
+  "email": "admin@apextools.com",
+  "password": "ApexPassword123!",
+  "plan": "Sales",
+  "modules": ["sales"]
+}

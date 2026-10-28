@@ -15,6 +15,18 @@ import {
   clearStoredSite,
 } from './frappeHttp'
 
+let _inMemoryCheckoutPassword: string | null = null
+
+export function setCheckoutSessionPassword(pwd: string | null): void {
+  _inMemoryCheckoutPassword = pwd
+}
+
+export function consumeCheckoutSessionPassword(): string | null {
+  const pwd = _inMemoryCheckoutPassword
+  _inMemoryCheckoutPassword = null
+  return pwd
+}
+
 function erpnextRoleFor(role: Role): string {
   return ROLE_DEFINITIONS[role]?.erpnextRole || 'Sales User'
 }
