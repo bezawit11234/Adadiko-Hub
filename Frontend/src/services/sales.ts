@@ -571,23 +571,19 @@ class FrappeSalesApi implements SalesApi {
   }
 
   async getSalesOrder(id: string): Promise<ApiResult<SalesOrder>> {
-    const res = await frappeFetch<any>(`/api/resource/Sales%20Order/${encodeURIComponent(id)}`)
-    if (!res.ok || !res.data) return { ok: false, error: res.error }
-    const order = mapSalesOrder(res.data)
-
-    // Lookup linked Sales Invoice if any
-    try {
-      const invRes = await frappeFetch<any[]>(
-        `/api/resource/Sales%20Invoice?filters=%5B%5B%22Sales%20Invoice%20Item%22%2C%22sales_order%22%2C%22%3D%22%2C%22${encodeURIComponent(id)}%22%5D%5D&fields=%5B%22name%22%5D&limit=1`
-      )
-      if (invRes.ok && invRes.data && invRes.data.length > 0) {
-        order.invoiceId = invRes.data[0].name
-      }
-    } catch {
-      // non-fatal
+    const res = await frappeFetch<any>(
+      `/api/method/adadiko_hub.api.get_sales_order_details?sales_order_id=${encodeURIComponent(id)}`
+    )
+    if (res.ok && res.data) {
+      const order = mapSalesOrder(res.data)
+      if (res.data.invoice_id) order.invoiceId = res.data.invoice_id
+      if (res.data.delivery_note_id) order.deliveryNoteId = res.data.delivery_note_id
+      return { ok: true, data: order }
     }
 
-    return { ok: true, data: order }
+    const fallbackRes = await frappeFetch<any>(`/api/resource/Sales%20Order/${encodeURIComponent(id)}`)
+    if (!fallbackRes.ok || !fallbackRes.data) return { ok: false, error: fallbackRes.error }
+    return { ok: true, data: mapSalesOrder(fallbackRes.data) }
   }
 
 
@@ -600,7 +596,7 @@ class FrappeSalesApi implements SalesApi {
         customer: payload.customerId || payload.customerName,
         delivery_date: payload.deliveryDate,
         items: payload.items,
-        submit: false,
+        submit: true,
       }),
     })
     if (!res.ok || !res.data) return { ok: false, error: res.error }

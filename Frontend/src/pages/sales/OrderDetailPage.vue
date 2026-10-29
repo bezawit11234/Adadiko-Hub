@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { getSalesApi } from '@/services/sales'
+import { getStoredSlug } from '@/services/frappeHttp'
 import { useToast } from '@/composables/useToast'
 import type { SalesOrder } from '@/types'
 import AppButton from '@/components/common/AppButton.vue'
@@ -9,7 +10,6 @@ import AppIcon from '@/components/common/AppIcon.vue'
 import Badge from '@/components/common/Badge.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import StepTracker from '@/components/common/StepTracker.vue'
-import SampleNotice from '@/components/common/SampleNotice.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Modal from '@/components/common/Modal.vue'
 import Field from '@/components/common/Field.vue'
@@ -26,11 +26,30 @@ const order = ref<SalesOrder | null>(null)
 const loading = ref(true)
 const actionLoading = ref(false)
 
-// Payment modal state if paying directly from order detail
+// Desk links
+const currentSlug = computed(() => getStoredSlug() || 'adadiko')
+const deskOrderUrl = computed(() => `http://${currentSlug.value}.localhost:8000/desk/sales-order/${orderId.value}`)
+const deskInvoiceUrl = computed(() =>
+  order.value?.invoiceId ? `http://${currentSlug.value}.localhost:8000/desk/sales-invoice/${order.value.invoiceId}` : ''
+)
+const deskDeliveryUrl = computed(() =>
+  order.value?.deliveryNoteId ? `http://${currentSlug.value}.localhost:8000/desk/delivery-note/${order.value.deliveryNoteId}` : ''
+)
+
+// Payment modal state
 const isPaymentModalOpen = ref(false)
 const payAmount = ref(0)
 const payMode = ref<'Bank Transfer' | 'Credit Card' | 'Cheque' | 'Cash'>('Bank Transfer')
 const payRef = ref('')
+
+const isOrderCompleted = computed(() => {
+  if (!order.value) return false
+  return (
+    order.value.status === 'Completed' ||
+    order.value.billingStatus === 'Paid' ||
+    (order.value.billingStatus === 'Fully Billed' && order.value.stage === 'Payment')
+  )
+})
 
 async function loadOrder() {
   loading.value = true
@@ -49,7 +68,6 @@ onMounted(() => {
   loadOrder()
 })
 
-// Prominent Next Step Computation
 interface NextStepAction {
   label: string
   action: () => void
@@ -59,39 +77,39 @@ interface NextStepAction {
 }
 
 const nextStepInfo = computed<NextStepAction | null>(() => {
-  if (!order.value) return null
+  if (!order.value || isOrderCompleted.value) return null
   const o = order.value
 
-  // If order needs delivery
-  if (o.deliveryStatus === 'Not Delivered') {
-    return {
-      label: 'Create Delivery',
-      action: handleCreateDelivery,
-      icon: 'truck',
-      badgeText: 'Fulfillment Pending',
-      description: 'Generate a delivery note for storekeeper dispatch and update stock levels.',
-    }
-  }
-
-  // If delivered but needs invoice
-  if (o.billingStatus === 'Not Billed' || !o.invoiceId) {
-    return {
-      label: 'Create Invoice',
-      action: handleCreateInvoice,
-      icon: 'receipt',
-      badgeText: 'Billing Pending',
-      description: 'Generate customer sales invoice and post outstanding debt to accounts receivable.',
-    }
-  }
-
-  // If invoiced but needs payment
-  if (o.billingStatus !== 'Paid' && o.invoiceId) {
+  // If invoiced and awaiting payment
+  if (o.invoiceId && o.billingStatus !== 'Paid') {
     return {
       label: 'Record Payment',
       action: () => { isPaymentModalOpen.value = true },
       icon: 'credit-card',
       badgeText: 'Payment Pending',
-      description: 'Log received customer wire or card receipt to complete transaction.',
+      description: `Sales Invoice ${o.invoiceId} is ready. Record customer payment receipt to reconcile in full.`,
+    }
+  }
+
+  // If delivered but needs invoice
+  if (o.deliveryStatus === 'Fully Delivered' && !o.invoiceId) {
+    return {
+      label: 'Generate Invoice',
+      action: handleCreateInvoice,
+      icon: 'receipt',
+      badgeText: 'Billing Pending',
+      description: 'Goods dispatched. Generate customer sales invoice and post receivables.',
+    }
+  }
+
+  // Not delivered and not invoiced yet: delivery is optional!
+  if (!o.invoiceId) {
+    return {
+      label: 'Create Delivery',
+      action: handleCreateDelivery,
+      icon: 'truck',
+      badgeText: 'Fulfillment & Billing',
+      description: 'Dispatch physical goods with a Delivery Note, or bill directly if delivery is optional.',
     }
   }
 
@@ -104,7 +122,7 @@ async function handleCreateDelivery() {
   try {
     const res = await salesApi.createDelivery(order.value.id)
     if (res.ok && res.data) {
-      toast.success('Delivery Note Created', `Dispatched note ${res.data.id} created! Stock reserved.`)
+      toast.success('Delivery Note Created', `Delivery Note ${res.data.id} recorded in ERPNext!`)
       await loadOrder()
     } else {
       toast.error('Failed to create delivery', res.error)
@@ -120,7 +138,7 @@ async function handleCreateInvoice() {
   try {
     const res = await salesApi.createInvoiceFromOrder(order.value.id)
     if (res.ok && res.data) {
-      toast.success('Invoice Created', `Sales Invoice ${res.data.id} generated! Customer owes ${formatCurrency(res.data.grandTotal)}.`)
+      toast.success('Invoice Created', `Sales Invoice ${res.data.id} created! Customer owes ${formatCurrency(res.data.grandTotal)}.`)
       await loadOrder()
     } else {
       toast.error('Failed to create invoice', res.error)
@@ -138,10 +156,10 @@ async function handleRecordPayment() {
       order.value.invoiceId,
       payAmount.value,
       payMode.value,
-      payRef.value || 'WIRE-' + Math.floor(Math.random() * 900000 + 100000)
+      payRef.value || 'PAY-' + Math.floor(Math.random() * 900000 + 100000)
     )
     if (res.ok) {
-      toast.success('Payment Recorded', `Payment of ${formatCurrency(payAmount.value)} recorded successfully!`)
+      toast.success('Payment Recorded', `Payment of ${formatCurrency(payAmount.value)} confirmed! Order completed.`)
       isPaymentModalOpen.value = false
       await loadOrder()
     } else {
@@ -165,13 +183,23 @@ async function handleRecordPayment() {
       <!-- Order Header Card -->
       <div class="bg-white rounded-3xl border border-stone-border shadow-card p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div class="space-y-1.5">
-          <div class="flex items-center gap-2.5">
+          <div class="flex items-center gap-2.5 flex-wrap">
             <span class="text-xs font-mono font-bold text-signal bg-signal-subtle px-2 py-0.5 rounded border border-signal/20">
               {{ order.id }}
             </span>
-            <Badge :variant="order.status === 'Completed' ? 'success' : 'signal'" size="sm" dot>
-              {{ order.status }}
+            <Badge :variant="isOrderCompleted ? 'success' : 'signal'" size="sm" dot>
+              {{ isOrderCompleted ? 'Completed (Paid)' : order.status }}
             </Badge>
+
+            <a
+              :href="deskOrderUrl"
+              target="_blank"
+              class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-stone-bg hover:bg-stone-muted border border-stone-border text-[11px] font-bold text-ink transition-colors"
+              title="Open live Sales Order in ERPNext Desk"
+            >
+              <AppIcon name="external-link" :size="12" />
+              <span>ERPNext Desk</span>
+            </a>
           </div>
           <h1 class="text-2xl font-black text-ink font-heading">
             {{ order.customerName }}
@@ -191,53 +219,99 @@ async function handleRecordPayment() {
             {{ formatCurrency(order.grandTotal) }}
           </span>
           <span class="text-xs text-ink-light block mt-0.5">
-            {{ order.billingStatus }}
+            {{ isOrderCompleted ? 'Paid' : order.billingStatus }}
           </span>
         </div>
       </div>
 
       <!-- STEP TRACKER -->
-      <StepTracker :current-stage="order.stage" />
+      <StepTracker
+        :current-stage="order.stage"
+        :is-completed="isOrderCompleted"
+      />
 
       <!-- PROMINENT NEXT STEP CALLOUT BANNER -->
       <div
-        v-if="nextStepInfo"
+        v-if="!isOrderCompleted"
         class="bg-gradient-to-r from-signal-subtle/80 via-white to-stone-bg border-2 border-signal/40 p-6 rounded-3xl shadow-card flex flex-col sm:flex-row items-center justify-between gap-6"
       >
         <div class="space-y-1 text-center sm:text-left">
           <div class="flex items-center justify-center sm:justify-start gap-2">
-            <Badge variant="signal" size="sm" dot>{{ nextStepInfo.badgeText }}</Badge>
+            <Badge variant="signal" size="sm" dot>{{ nextStepInfo?.badgeText || 'Action Required' }}</Badge>
             <span class="text-xs font-bold uppercase tracking-wider text-ink font-heading">
-              Recommended Next Action:
+              Next Action:
             </span>
           </div>
           <p class="text-sm font-semibold text-ink">
-            {{ nextStepInfo.description }}
+            {{ nextStepInfo?.description }}
           </p>
         </div>
 
-        <!-- Prominent Button -->
-        <AppButton
-          variant="primary"
-          size="lg"
-          :loading="actionLoading"
-          class="font-extrabold px-8 py-3.5 shadow-lift text-base shrink-0"
-          @click="nextStepInfo.action"
-        >
-          <AppIcon :name="nextStepInfo.icon" :size="20" />
-          <span>{{ nextStepInfo.label }}</span>
-        </AppButton>
+        <div class="flex flex-wrap items-center gap-3 shrink-0">
+          <!-- When invoice is ready: Show Record Payment -->
+          <AppButton
+            v-if="order.invoiceId && order.billingStatus !== 'Paid'"
+            variant="primary"
+            size="lg"
+            :loading="actionLoading"
+            class="font-extrabold px-8 py-3.5 shadow-lift text-base"
+            @click="isPaymentModalOpen = true"
+          >
+            <AppIcon name="credit-card" :size="20" />
+            <span>Record Payment ({{ formatCurrency(order.grandTotal) }})</span>
+          </AppButton>
+
+          <!-- When order not invoiced yet: Show BOTH Delivery AND Direct Invoicing -->
+          <template v-else-if="!order.invoiceId">
+            <AppButton
+              v-if="order.deliveryStatus !== 'Fully Delivered'"
+              variant="outline"
+              size="lg"
+              :loading="actionLoading"
+              class="font-bold px-6 py-3 text-sm"
+              @click="handleCreateDelivery"
+            >
+              <AppIcon name="truck" :size="18" />
+              <span>Create Delivery</span>
+            </AppButton>
+
+            <AppButton
+              variant="primary"
+              size="lg"
+              :loading="actionLoading"
+              class="font-extrabold px-8 py-3.5 shadow-lift text-base"
+              @click="handleCreateInvoice"
+            >
+              <AppIcon name="receipt" :size="20" />
+              <span>{{ order.deliveryStatus === 'Fully Delivered' ? 'Generate Invoice' : 'Skip Delivery & Bill Directly' }}</span>
+            </AppButton>
+          </template>
+        </div>
       </div>
 
+      <!-- COMPLETED & FULLY PAID BANNER -->
       <div
         v-else
-        class="bg-status-green-bg/60 border border-status-green/30 p-5 rounded-2xl flex items-center gap-3 text-status-green"
+        class="bg-status-green-bg/60 border border-status-green/30 p-6 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-status-green"
       >
-        <AppIcon name="check-circle" :size="24" />
-        <div>
-          <h4 class="text-sm font-bold">This Order is Completed!</h4>
-          <p class="text-xs text-ink-muted">All goods have been delivered and full payment was received.</p>
+        <div class="flex items-center gap-3.5">
+          <div class="w-10 h-10 rounded-2xl bg-status-green text-white flex items-center justify-center shrink-0">
+            <AppIcon name="check-circle" :size="22" />
+          </div>
+          <div>
+            <h4 class="text-base font-extrabold font-heading text-ink">Order Completed & Bill Paid!</h4>
+            <p class="text-xs text-ink-muted">All goods have been processed and full customer payment has been reconciled in ERPNext.</p>
+          </div>
         </div>
+
+        <a
+          :href="deskOrderUrl"
+          target="_blank"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-stone-bg border border-stone-border text-xs font-bold text-ink shadow-2xs transition-colors shrink-0"
+        >
+          <AppIcon name="external-link" :size="14" />
+          <span>View in ERPNext Desk</span>
+        </a>
       </div>
 
       <!-- Order Items Table -->
@@ -298,7 +372,7 @@ async function handleRecordPayment() {
       <!-- Linked Documents Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <!-- Delivery Card -->
-        <div class="bg-white p-5 rounded-2xl border border-stone-border shadow-2xs space-y-2">
+        <div class="bg-white p-5 rounded-2xl border border-stone-border shadow-2xs space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold uppercase text-ink-muted flex items-center gap-1.5">
               <AppIcon name="truck" :size="14" className="text-signal" />
@@ -308,26 +382,51 @@ async function handleRecordPayment() {
               {{ order.deliveryStatus }}
             </Badge>
           </div>
-          <p v-if="order.deliveryNoteId" class="text-xs text-ink font-bold">
-            Doc Ref: {{ order.deliveryNoteId }}
-          </p>
-          <p v-else class="text-xs text-ink-muted">No dispatch created yet.</p>
+          <div v-if="order.deliveryNoteId" class="flex items-center justify-between pt-1">
+            <p class="text-xs text-ink font-bold font-mono">
+              {{ order.deliveryNoteId }}
+            </p>
+            <a
+              v-if="deskDeliveryUrl"
+              :href="deskDeliveryUrl"
+              target="_blank"
+              class="text-xs text-signal hover:underline font-semibold flex items-center gap-1"
+            >
+              <span>View in ERPNext</span>
+              <AppIcon name="external-link" :size="12" />
+            </a>
+          </div>
+          <p v-else class="text-xs text-ink-muted">Delivery note optional or not created.</p>
         </div>
 
         <!-- Invoice Card -->
-        <div class="bg-white p-5 rounded-2xl border border-stone-border shadow-2xs space-y-2">
+        <div class="bg-white p-5 rounded-2xl border border-stone-border shadow-2xs space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold uppercase text-ink-muted flex items-center gap-1.5">
               <AppIcon name="receipt" :size="14" className="text-signal" />
               <span>Sales Invoice</span>
             </span>
-            <Badge :variant="order.billingStatus === 'Paid' ? 'success' : 'neutral'" size="sm">
-              {{ order.billingStatus }}
+            <Badge :variant="order.billingStatus === 'Paid' || isOrderCompleted ? 'success' : 'neutral'" size="sm">
+              {{ isOrderCompleted ? 'Paid' : order.billingStatus }}
             </Badge>
           </div>
-          <p v-if="order.invoiceId" class="text-xs text-ink font-bold">
-            Doc Ref: {{ order.invoiceId }}
-          </p>
+          <div v-if="order.invoiceId" class="flex items-center justify-between pt-1">
+            <RouterLink
+              :to="`/app/sales/invoices/${order.invoiceId}`"
+              class="text-xs text-ink font-bold font-mono hover:text-signal transition-colors"
+            >
+              {{ order.invoiceId }}
+            </RouterLink>
+            <a
+              v-if="deskInvoiceUrl"
+              :href="deskInvoiceUrl"
+              target="_blank"
+              class="text-xs text-signal hover:underline font-semibold flex items-center gap-1"
+            >
+              <span>View in ERPNext</span>
+              <AppIcon name="external-link" :size="12" />
+            </a>
+          </div>
           <p v-else class="text-xs text-ink-muted">No invoice generated yet.</p>
         </div>
       </div>
@@ -354,7 +453,7 @@ async function handleRecordPayment() {
     <Modal
       :is-open="isPaymentModalOpen"
       title="Record Customer Payment"
-      subtitle="Log incoming customer funds against this order's invoice."
+      subtitle="Log incoming customer funds against this order's invoice in ERPNext."
       max-width="md"
       @close="isPaymentModalOpen = false"
     >
@@ -368,14 +467,14 @@ async function handleRecordPayment() {
             v-model="payMode"
             class="block w-full rounded-xl border border-stone-border bg-white px-3.5 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-signal/20 focus:border-signal"
           >
+            <option value="Cash">Cash Receipt</option>
             <option value="Bank Transfer">Bank Wire Transfer</option>
             <option value="Credit Card">Credit Card</option>
             <option value="Cheque">Cheque</option>
-            <option value="Cash">Cash Receipt</option>
           </select>
         </Field>
 
-        <Field label="Bank Reference / Transaction #">
+        <Field label="Bank Reference / Receipt #">
           <TextField v-model="payRef" placeholder="e.g. STANBIC-FT-88912" />
         </Field>
       </div>
@@ -385,7 +484,7 @@ async function handleRecordPayment() {
           Cancel
         </AppButton>
         <AppButton variant="primary" size="sm" :loading="actionLoading" @click="handleRecordPayment">
-          Confirm Payment
+          Confirm Payment Receipt
         </AppButton>
       </template>
     </Modal>

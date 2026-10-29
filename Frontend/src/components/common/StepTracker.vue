@@ -7,19 +7,22 @@ const props = withDefaults(
   defineProps<{
     currentStage: OrderStage
     steps?: OrderStage[]
+    isCompleted?: boolean
   }>(),
   {
     steps: () => ['Quotation', 'Sales Order', 'Delivery', 'Invoice', 'Payment'],
+    isCompleted: false,
   }
 )
 
 const currentIndex = computed(() => {
+  if (props.isCompleted) return props.steps.length
   const idx = props.steps.indexOf(props.currentStage)
   return idx >= 0 ? idx : 0
 })
 
 function getStepState(idx: number): 'completed' | 'current' | 'upcoming' {
-  if (idx < currentIndex.value) return 'completed'
+  if (props.isCompleted || idx < currentIndex.value) return 'completed'
   if (idx === currentIndex.value) return 'current'
   return 'upcoming'
 }
