@@ -75,8 +75,6 @@ async function handleCreateDelivery(salesOrderId: string) {
 
 <template>
   <PageContainer max-width="2xl">
-    <SampleNotice text="ERPNext Delivery Note DocType: Storekeeper dispatch queue reducing Main Store inventory balances." />
-
     <SectionHeading
       title="Deliveries & Warehouse Dispatch"
       description="Storekeeper fulfillment workspace. Review orders awaiting packing slips and print dispatch notes."

@@ -198,7 +198,7 @@ function triggerCommandPalette() {
               {{ workspaceAddress }}
             </span>
             <span v-else class="text-[10px] text-stone-bg/50 uppercase tracking-wider font-semibold">
-              Adadiko Hub • Frappe v16
+              Adadiko Hub • Enterprise Cloud
             </span>
           </div>
         </RouterLink>

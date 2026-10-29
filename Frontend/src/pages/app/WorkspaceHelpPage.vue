@@ -8,8 +8,6 @@ import SampleNotice from '@/components/common/SampleNotice.vue'
 
 <template>
   <PageContainer max-width="lg">
-    <SampleNotice text="Workspace Help & Documentation: Keyboard shortcuts and Frappe v16 integration guidance." />
-
     <SectionHeading
       title="Help & Keyboard Shortcuts"
       description="Quick reference for navigating your Adadiko Hub workspace efficiently."

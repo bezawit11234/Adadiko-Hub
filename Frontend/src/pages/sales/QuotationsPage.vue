@@ -88,8 +88,6 @@ async function convertToOrder(quote: Quotation) {
 
 <template>
   <PageContainer max-width="2xl">
-    <SampleNotice text="ERPNext Quotation DocType: Submit quotes to prospects and convert into confirmed Sales Orders in one click." />
-
     <SectionHeading
       title="Quotations & Proposals"
       description="Track commercial price quotes, validity dates, and convert approved quotes into sales orders."
@@ -98,10 +96,10 @@ async function convertToOrder(quote: Quotation) {
         <Badge variant="signal" size="sm">{{ quotations.length }} Quotations</Badge>
       </template>
       <template #actions>
-        <RouterLink to="/app/sales/orders/new">
+        <RouterLink to="/app/sales/quotations/new">
           <AppButton variant="primary" size="sm">
             <AppIcon name="plus" :size="16" />
-            <span>Create New Quote / Order</span>
+            <span>New Quotation</span>
           </AppButton>
         </RouterLink>
       </template>

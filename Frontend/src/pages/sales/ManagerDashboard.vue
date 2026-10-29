@@ -86,8 +86,6 @@ const areaPoints = computed(() => {
 
 <template>
   <PageContainer max-width="2xl">
-    <SampleNotice text="Sales Manager Executive Dashboard: Real-time revenue aggregates, SVG trend telemetry, and discount authorization queue." />
-
     <SectionHeading
       title="Sales Operations Dashboard"
       description="Executive revenue telemetry, pipeline velocity, team targets, and authorization requests."

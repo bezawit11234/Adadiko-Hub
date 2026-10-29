@@ -4,17 +4,34 @@ import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { getSalesApi } from '@/services/sales'
 import { useToast } from '@/composables/useToast'
 import { useSession } from '@/composables/useSession'
-import { MOCK_CATALOG_ITEMS } from '@/data/mockSales'
 import type { Customer, OrderItem } from '@/types'
 import AppButton from '@/components/common/AppButton.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
-import Badge from '@/components/common/Badge.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import SectionHeading from '@/components/common/SectionHeading.vue'
 import Field from '@/components/common/Field.vue'
 import TextField from '@/components/common/TextField.vue'
-import SampleNotice from '@/components/common/SampleNotice.vue'
+import Modal from '@/components/common/Modal.vue'
 import { formatCurrency } from '@/utils/format'
+
+interface CatalogItem {
+  itemCode: string
+  itemName: string
+  rate: number
+  stockAvailable: number
+  warehouse: string
+}
+
+interface FormItemRow {
+  id: string
+  itemCode: string
+  itemName: string
+  qty: number
+  rate: number
+  stockAvailable: number
+  warehouse: string
+  isCustom?: boolean
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -23,7 +40,8 @@ const toast = useToast()
 const { currentUser } = useSession()
 
 const customers = ref<Customer[]>([])
-const loadingCustomers = ref(true)
+const availableItems = ref<CatalogItem[]>([])
+const loadingData = ref(true)
 const submitting = ref(false)
 
 // Form fields
@@ -36,35 +54,37 @@ const shippingInstructions = ref('')
 const showMoreOptions = ref(false)
 
 // Line Items
-interface FormItemRow {
-  id: string
-  itemCode: string
-  itemName: string
-  qty: number
-  rate: number
-  stockAvailable: number
-  warehouse: string
-}
-
 const itemRows = ref<FormItemRow[]>([
   {
     id: 'row-1',
-    itemCode: MOCK_CATALOG_ITEMS[0].itemCode,
-    itemName: MOCK_CATALOG_ITEMS[0].itemName,
-    qty: 2,
-    rate: MOCK_CATALOG_ITEMS[0].rate,
-    stockAvailable: MOCK_CATALOG_ITEMS[0].stockAvailable,
-    warehouse: MOCK_CATALOG_ITEMS[0].warehouse,
+    itemCode: 'ITEM-SOLAR-PANEL',
+    itemName: 'Solar Panel 400W Monocrystalline',
+    qty: 1,
+    rate: 180,
+    stockAvailable: 50,
+    warehouse: 'Main Warehouse',
   },
 ])
 
+// Quick Customer Modal
+const isCustomerModalOpen = ref(false)
+const quickCustomerName = ref('')
+const quickCustomerEmail = ref('')
+const quickCustomerPhone = ref('')
+const quickCustomerTerritory = ref('All Territories')
+const quickCustomerGroup = ref('Commercial')
+const creatingCustomer = ref(false)
+
 onMounted(async () => {
-  loadingCustomers.value = true
+  loadingData.value = true
   try {
-    const res = await salesApi.listCustomers()
-    if (res.ok && res.data) {
-      customers.value = res.data
-      // If customer query param was passed, select it
+    const [custRes, itemsRes] = await Promise.all([
+      salesApi.listCustomers(),
+      salesApi.listItems(),
+    ])
+
+    if (custRes.ok && custRes.data) {
+      customers.value = custRes.data
       const queryCust = route.query.customer as string
       if (queryCust) {
         selectedCustomerId.value = queryCust
@@ -72,8 +92,24 @@ onMounted(async () => {
         selectedCustomerId.value = customers.value[0].id
       }
     }
+
+    if (itemsRes.ok && itemsRes.data && itemsRes.data.length > 0) {
+      availableItems.value = itemsRes.data
+      const first = itemsRes.data[0]
+      itemRows.value = [
+        {
+          id: 'row-1',
+          itemCode: first.itemCode,
+          itemName: first.itemName,
+          qty: 1,
+          rate: first.rate || 100,
+          stockAvailable: first.stockAvailable || 100,
+          warehouse: first.warehouse || 'Main Warehouse',
+        },
+      ]
+    }
   } finally {
-    loadingCustomers.value = false
+    loadingData.value = false
   }
 })
 
@@ -82,15 +118,22 @@ const selectedCustomer = computed(() => {
 })
 
 function addItemRow() {
-  const defaultItem = MOCK_CATALOG_ITEMS[1] // Hybrid Inverter with 3 in stock
+  const fallback = availableItems.value[0] || {
+    itemCode: `ITEM-${itemRows.value.length + 1}`,
+    itemName: 'New Line Item',
+    rate: 100,
+    stockAvailable: 100,
+    warehouse: 'Main Warehouse',
+  }
+
   itemRows.value.push({
     id: 'row-' + Date.now(),
-    itemCode: defaultItem.itemCode,
-    itemName: defaultItem.itemName,
+    itemCode: fallback.itemCode,
+    itemName: fallback.itemName,
     qty: 1,
-    rate: defaultItem.rate,
-    stockAvailable: defaultItem.stockAvailable,
-    warehouse: defaultItem.warehouse,
+    rate: fallback.rate,
+    stockAvailable: fallback.stockAvailable,
+    warehouse: fallback.warehouse,
   })
 }
 
@@ -100,8 +143,17 @@ function removeItemRow(idx: number) {
   }
 }
 
-function onItemCodeChange(row: FormItemRow, code: string) {
-  const match = MOCK_CATALOG_ITEMS.find((i) => i.itemCode === code)
+function onItemSelect(row: FormItemRow, code: string) {
+  if (code === '__custom__') {
+    row.isCustom = true
+    row.itemCode = `ITEM-${Date.now().toString().slice(-4)}`
+    row.itemName = 'Custom Item'
+    row.rate = 100
+    return
+  }
+
+  row.isCustom = false
+  const match = availableItems.value.find((i) => i.itemCode === code)
   if (match) {
     row.itemCode = match.itemCode
     row.itemName = match.itemName
@@ -111,9 +163,44 @@ function onItemCodeChange(row: FormItemRow, code: string) {
   }
 }
 
+async function handleCreateQuickCustomer() {
+  if (!quickCustomerName.value.trim()) {
+    toast.error('Validation error', 'Please enter a customer name.')
+    return
+  }
+
+  creatingCustomer.value = true
+  try {
+    const res = await salesApi.createCustomer({
+      name: quickCustomerName.value.trim(),
+      email: quickCustomerEmail.value.trim() || 'info@customer.example',
+      phone: quickCustomerPhone.value.trim() || '+254 700 000000',
+      territory: quickCustomerTerritory.value.trim() || 'All Territories',
+      group: quickCustomerGroup.value.trim() || 'Commercial',
+      status: 'Active',
+      amountOwed: 0,
+      assignedTo: currentUser.value?.id || 'usr_rep_1',
+    })
+
+    if (res.ok && res.data) {
+      toast.success('Customer Registered', `${res.data.name} is now available.`)
+      customers.value.unshift(res.data)
+      selectedCustomerId.value = res.data.id
+      isCustomerModalOpen.value = false
+      quickCustomerName.value = ''
+      quickCustomerEmail.value = ''
+      quickCustomerPhone.value = ''
+    } else {
+      toast.error('Failed to create customer', res.error)
+    }
+  } finally {
+    creatingCustomer.value = false
+  }
+}
+
 // Live Financial Calculations
 const subtotal = computed(() => {
-  return itemRows.value.reduce((acc, row) => acc + (row.qty * row.rate || 0), 0)
+  return itemRows.value.reduce((acc, row) => acc + (Number(row.qty) * Number(row.rate) || 0), 0)
 })
 
 const taxAmount = computed(() => {
@@ -126,25 +213,25 @@ const grandTotal = computed(() => {
 
 async function handleSubmitOrder() {
   if (!selectedCustomerId.value) {
-    toast.error('Validation Error', 'Please select a customer for this order.')
+    toast.error('Validation Error', 'Please select or create a customer for this order.')
     return
   }
   if (itemRows.value.length === 0 || subtotal.value <= 0) {
-    toast.error('Validation Error', 'Please specify at least one item with a valid quantity.')
+    toast.error('Validation Error', 'Please specify at least one line item with a valid quantity and rate.')
     return
   }
 
   submitting.value = true
   try {
     const itemsPayload: OrderItem[] = itemRows.value.map((r, idx) => ({
-      id: `soi-new-${idx + 1}`,
-      itemCode: r.itemCode,
-      itemName: r.itemName,
-      qty: r.qty,
-      rate: r.rate,
-      amount: r.qty * r.rate,
-      stockAvailable: r.stockAvailable,
-      warehouse: r.warehouse,
+      id: `soi-${idx + 1}`,
+      itemCode: r.itemCode.trim() || `ITEM-${idx + 1}`,
+      itemName: r.itemName.trim() || r.itemCode,
+      qty: Number(r.qty) || 1,
+      rate: Number(r.rate) || 0,
+      amount: (Number(r.qty) || 1) * (Number(r.rate) || 0),
+      stockAvailable: r.stockAvailable || 100,
+      warehouse: r.warehouse || 'Main Warehouse',
     }))
 
     const res = await salesApi.createSalesOrder({
@@ -163,7 +250,7 @@ async function handleSubmitOrder() {
     if (res.ok && res.data) {
       toast.success(
         'Sales Order Created!',
-        `Order ${res.data.id} registered for ${res.data.customerName}.`
+        `Order ${res.data.id} has been registered.`
       )
       router.push(`/app/sales/orders/${res.data.id}`)
     } else {
@@ -183,24 +270,37 @@ async function handleSubmitOrder() {
       <span class="text-ink font-semibold">New Sales Order</span>
     </div>
 
-    <SampleNotice text="New Order Form: Essentials first, live totals, automatic stock level alerts, and collapsible advanced options." />
-
     <SectionHeading
       title="Create New Sales Order"
-      description="Create a commercial sales order. Stock reservations and delivery workflows will be initiated automatically."
+      description="Create a confirmed commercial order. Fulfillments, deliveries, and invoicing will track this order."
     />
 
     <form class="space-y-6" @submit.prevent="handleSubmitOrder">
       <!-- SECTION 1: ESSENTIALS (Customer & Target Date) -->
       <div class="bg-white rounded-3xl border border-stone-border shadow-soft p-6 sm:p-8 space-y-6">
         <h2 class="text-base font-bold text-ink font-heading pb-2 border-b border-stone-border">
-          1. Essentials
+          1. Customer & Delivery Schedule
         </h2>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <!-- Customer Dropdown -->
-          <Field label="Customer Account" required hint="Select who will be billed for this order">
+          <!-- Customer Selection with Quick-Add -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-bold text-ink">
+                Customer Account <span class="text-signal">*</span>
+              </label>
+              <button
+                type="button"
+                class="text-xs text-signal hover:underline font-semibold flex items-center gap-1"
+                @click="isCustomerModalOpen = true"
+              >
+                <AppIcon name="plus" :size="12" />
+                <span>Quick Add Customer</span>
+              </button>
+            </div>
+
             <select
+              v-if="customers.length > 0"
               v-model="selectedCustomerId"
               class="block w-full rounded-xl border border-stone-border bg-white px-3.5 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-signal/20 focus:border-signal"
             >
@@ -208,10 +308,24 @@ async function handleSubmitOrder() {
                 {{ c.name }} ({{ c.territory }})
               </option>
             </select>
-          </Field>
+
+            <div
+              v-else
+              class="p-3 rounded-xl bg-stone-bg border border-stone-border flex items-center justify-between text-xs"
+            >
+              <span class="text-ink-muted">No customers registered yet.</span>
+              <button
+                type="button"
+                class="px-2.5 py-1 bg-signal text-white rounded-lg font-bold text-xs hover:bg-signal/90"
+                @click="isCustomerModalOpen = true"
+              >
+                + Register Customer
+              </button>
+            </div>
+          </div>
 
           <!-- Target Delivery Date -->
-          <Field label="Target Delivery Date" required hint="Expected date goods will reach the customer">
+          <Field label="Target Delivery Date" required hint="Expected delivery completion date">
             <TextField v-model="deliveryDate" type="date" />
           </Field>
         </div>
@@ -223,7 +337,7 @@ async function handleSubmitOrder() {
         >
           <div class="flex items-center gap-2 text-status-amber">
             <AppIcon name="alert-triangle" :size="16" />
-            <span><strong>Notice:</strong> This customer currently owes <strong>{{ formatCurrency(selectedCustomer.amountOwed) }}</strong> from past invoices.</span>
+            <span><strong>Notice:</strong> This customer has an outstanding balance of <strong>{{ formatCurrency(selectedCustomer.amountOwed) }}</strong>.</span>
           </div>
           <RouterLink :to="`/app/sales/customers/${selectedCustomer.id}`" class="text-signal hover:underline font-semibold shrink-0">
             View Ledger →
@@ -231,14 +345,14 @@ async function handleSubmitOrder() {
         </div>
       </div>
 
-      <!-- SECTION 2: LINE ITEMS WITH LIVE TOTALS & STOCK WARNING -->
+      <!-- SECTION 2: LINE ITEMS WITH LIVE TOTALS -->
       <div class="bg-white rounded-3xl border border-stone-border shadow-soft p-6 sm:p-8 space-y-6">
         <div class="flex items-center justify-between pb-2 border-b border-stone-border">
           <div>
             <h2 class="text-base font-bold text-ink font-heading">
               2. Order Line Items
             </h2>
-            <p class="text-xs text-ink-muted">Add catalog products, set quantities, and review warehouse stock</p>
+            <p class="text-xs text-ink-muted">Select catalog items or enter custom line items, quantities, and rates</p>
           </div>
           <AppButton variant="outline" size="sm" type="button" @click="addItemRow">
             <AppIcon name="plus" :size="14" />
@@ -253,20 +367,37 @@ async function handleSubmitOrder() {
             class="p-4 rounded-2xl bg-stone-bg/40 border border-stone-border space-y-3"
           >
             <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-              <!-- Item Selector (col-span-6) -->
+              <!-- Item Selector / Name (col-span-6) -->
               <div class="sm:col-span-6">
-                <label class="block text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-1">
-                  Product / Item #{{ idx + 1 }}
-                </label>
-                <select
-                  :value="row.itemCode"
-                  class="block w-full rounded-xl border border-stone-border bg-white px-3 py-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-signal/20 focus:border-signal"
-                  @change="onItemCodeChange(row, ($event.target as HTMLSelectElement).value)"
-                >
-                  <option v-for="catItem in MOCK_CATALOG_ITEMS" :key="catItem.itemCode" :value="catItem.itemCode">
-                    {{ catItem.itemName }} ({{ catItem.itemCode }})
-                  </option>
-                </select>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+                    Product / Item #{{ idx + 1 }}
+                  </label>
+                  <button
+                    type="button"
+                    class="text-[11px] text-signal hover:underline"
+                    @click="row.isCustom = !row.isCustom"
+                  >
+                    {{ row.isCustom ? 'Pick from catalog' : 'Enter custom item' }}
+                  </button>
+                </div>
+
+                <div v-if="!row.isCustom">
+                  <select
+                    :value="row.itemCode"
+                    class="block w-full rounded-xl border border-stone-border bg-white px-3 py-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-signal/20 focus:border-signal"
+                    @change="onItemSelect(row, ($event.target as HTMLSelectElement).value)"
+                  >
+                    <option v-for="catItem in availableItems" :key="catItem.itemCode" :value="catItem.itemCode">
+                      {{ catItem.itemName }} ({{ catItem.itemCode }}) — {{ formatCurrency(catItem.rate) }}
+                    </option>
+                    <option value="__custom__">+ Enter custom item...</option>
+                  </select>
+                </div>
+                <div v-else class="grid grid-cols-2 gap-2">
+                  <TextField v-model="row.itemCode" placeholder="Code (e.g. PROD-101)" />
+                  <TextField v-model="row.itemName" placeholder="Item Name" />
+                </div>
               </div>
 
               <!-- Quantity (col-span-2) -->
@@ -274,7 +405,7 @@ async function handleSubmitOrder() {
                 <label class="block text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-1">
                   Quantity
                 </label>
-                <TextField v-model="row.qty" type="number" tabular />
+                <TextField v-model="row.qty" type="number" tabular min="1" />
               </div>
 
               <!-- Rate (col-span-2) -->
@@ -282,7 +413,7 @@ async function handleSubmitOrder() {
                 <label class="block text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-1">
                   Unit Rate ($)
                 </label>
-                <TextField v-model="row.rate" type="number" tabular />
+                <TextField v-model="row.rate" type="number" tabular min="0" step="0.01" />
               </div>
 
               <!-- Line Total & Delete (col-span-2) -->
@@ -290,7 +421,7 @@ async function handleSubmitOrder() {
                 <div class="text-right">
                   <span class="block text-[10px] text-ink-light uppercase">Line Total</span>
                   <span class="font-extrabold text-sm text-ink num-tabular font-heading">
-                    {{ formatCurrency(row.qty * row.rate) }}
+                    {{ formatCurrency((Number(row.qty) || 0) * (Number(row.rate) || 0)) }}
                   </span>
                 </div>
                 <button
@@ -304,96 +435,125 @@ async function handleSubmitOrder() {
                 </button>
               </div>
             </div>
-
-            <!-- FRIENDLY STOCK WARNING (e.g. "Only 3 left in Main Store") -->
-            <div class="flex items-center gap-2 pt-1 text-xs">
-              <span class="text-ink-muted">Stock Status:</span>
-
-              <!-- Low stock alert -->
-              <span
-                v-if="row.stockAvailable <= 3"
-                class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-status-amber-bg text-status-amber text-[11px] font-bold border border-status-amber/20"
-              >
-                <AppIcon name="alert-triangle" :size="12" />
-                <span>Only {{ row.stockAvailable }} left in {{ row.warehouse }}</span>
-              </span>
-
-              <!-- Plentiful stock -->
-              <span
-                v-else
-                class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-status-green-bg text-status-green text-[11px] font-semibold"
-              >
-                <AppIcon name="check" :size="12" />
-                <span>{{ row.stockAvailable }} units available in {{ row.warehouse }}</span>
-              </span>
-
-              <!-- Warning if order quantity exceeds available stock -->
-              <span
-                v-if="row.qty > row.stockAvailable"
-                class="text-status-red font-semibold text-[11px] ml-2"
-              >
-                (Warning: Exceeds current stock; backorder will be initiated)
-              </span>
-            </div>
           </div>
         </div>
 
-        <!-- Live Totals Panel -->
-        <div class="pt-4 border-t border-stone-border flex justify-end">
-          <div class="w-full sm:w-80 space-y-2 text-xs bg-stone-bg/50 p-4 rounded-2xl border border-stone-border">
+        <!-- Live Totals Summary Card -->
+        <div class="p-5 rounded-2xl bg-stone-bg/70 border border-stone-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="text-xs text-ink-muted space-y-1">
+            <p>• Standard 15% VAT automatically applied.</p>
+            <p>• Ready for immediate dispatch upon submission.</p>
+          </div>
+          <div class="w-full sm:w-64 space-y-2 text-xs">
             <div class="flex justify-between text-ink-muted">
-              <span>Items Subtotal:</span>
-              <span class="font-bold text-ink num-tabular">{{ formatCurrency(subtotal) }}</span>
+              <span>Subtotal:</span>
+              <span class="font-mono text-ink font-semibold">{{ formatCurrency(subtotal) }}</span>
             </div>
             <div class="flex justify-between text-ink-muted">
-              <span>Standard Tax (15% VAT):</span>
-              <span class="font-bold text-ink num-tabular">{{ formatCurrency(taxAmount) }}</span>
+              <span>VAT (15%):</span>
+              <span class="font-mono text-ink font-semibold">{{ formatCurrency(taxAmount) }}</span>
             </div>
-            <div class="pt-2 border-t border-stone-border flex justify-between text-sm font-black text-ink">
-              <span>Order Grand Total:</span>
-              <span class="text-signal font-heading text-lg num-tabular">{{ formatCurrency(grandTotal) }}</span>
+            <div class="flex justify-between text-sm font-extrabold text-ink pt-2 border-t border-stone-border font-heading">
+              <span>Grand Total:</span>
+              <span class="font-mono text-signal text-base">{{ formatCurrency(grandTotal) }}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- SECTION 3: MORE OPTIONS (COLLAPSED BY DEFAULT) -->
-      <div class="bg-white rounded-3xl border border-stone-border shadow-soft p-6">
-        <button
-          type="button"
-          class="w-full flex items-center justify-between text-sm font-bold text-ink font-heading"
+      <!-- SECTION 3: NOTES & INSTRUCTIONS -->
+      <div class="bg-white rounded-3xl border border-stone-border shadow-soft p-6 sm:p-8 space-y-4">
+        <div
+          class="flex items-center justify-between cursor-pointer"
           @click="showMoreOptions = !showMoreOptions"
         >
           <div class="flex items-center gap-2">
-            <AppIcon name="settings" :size="16" className="text-signal" />
-            <span>More Options & Delivery Instructions (Optional)</span>
+            <h2 class="text-base font-bold text-ink font-heading">
+              3. Notes & Shipping Instructions
+            </h2>
+            <span class="text-xs text-ink-muted">({{ showMoreOptions ? 'Click to hide' : 'Optional' }})</span>
           </div>
-          <AppIcon :name="showMoreOptions ? 'chevron-up' : 'chevron-down'" :size="18" />
-        </button>
+          <button type="button" class="text-ink-muted hover:text-ink">
+            <AppIcon :name="showMoreOptions ? 'chevron-up' : 'chevron-down'" :size="18" />
+          </button>
+        </div>
 
-        <div v-if="showMoreOptions" class="mt-4 pt-4 border-t border-stone-border space-y-4">
-          <Field label="Special Shipping / Freight Instructions">
-            <TextField v-model="shippingInstructions" placeholder="e.g. Gate 4 delivery, require driver badge identification." />
+        <div v-show="showMoreOptions" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-stone-border">
+          <Field label="Dispatch / Shipping Instructions">
+            <TextField v-model="shippingInstructions" placeholder="e.g. Ship via express courier with fragile label" />
           </Field>
-          <Field label="Internal Sales Team Notes">
-            <TextField v-model="internalNotes" placeholder="e.g. Authorized under special regional promotion." />
+          <Field label="Internal Team Notes">
+            <TextField v-model="internalNotes" placeholder="e.g. Customer requested call before loading" />
           </Field>
         </div>
       </div>
 
       <!-- Action Buttons -->
-      <div class="flex items-center justify-between pt-2">
+      <div class="flex items-center justify-between pt-4">
         <RouterLink to="/app/sales/orders">
-          <AppButton variant="ghost" size="md">
-            Discard & Return
+          <AppButton variant="ghost" size="md" type="button">
+            Cancel
           </AppButton>
         </RouterLink>
 
-        <AppButton variant="primary" size="lg" :loading="submitting" type="submit" class="shadow-lift px-8">
-          <AppIcon name="check" :size="18" />
+        <AppButton
+          variant="primary"
+          size="md"
+          type="submit"
+          :loading="submitting"
+          :disabled="itemRows.length === 0 || subtotal <= 0"
+        >
+          <AppIcon name="check" :size="16" />
           <span>Confirm & Create Sales Order</span>
         </AppButton>
       </div>
     </form>
+
+    <!-- Modal: Quick Add Customer -->
+    <Modal
+      :is-open="isCustomerModalOpen"
+      title="Register New Customer"
+      subtitle="Quickly add a customer to associate with this order."
+      max-width="md"
+      @close="isCustomerModalOpen = false"
+    >
+      <div class="space-y-4 text-xs">
+        <Field label="Customer or Company Name" required>
+          <TextField v-model="quickCustomerName" placeholder="e.g. Serengeti Agro Mills Ltd" />
+        </Field>
+
+        <div class="grid grid-cols-2 gap-3">
+          <Field label="Email Address">
+            <TextField v-model="quickCustomerEmail" type="email" placeholder="contact@company.example" />
+          </Field>
+          <Field label="Phone Number">
+            <TextField v-model="quickCustomerPhone" placeholder="+254 700 000 000" />
+          </Field>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <Field label="Sales Territory">
+            <TextField v-model="quickCustomerTerritory" placeholder="All Territories" />
+          </Field>
+          <Field label="Customer Group">
+            <TextField v-model="quickCustomerGroup" placeholder="Commercial" />
+          </Field>
+        </div>
+      </div>
+
+      <template #footer>
+        <AppButton variant="ghost" size="sm" @click="isCustomerModalOpen = false">
+          Cancel
+        </AppButton>
+        <AppButton
+          variant="primary"
+          size="sm"
+          :loading="creatingCustomer"
+          @click="handleCreateQuickCustomer"
+        >
+          Save & Select Customer
+        </AppButton>
+      </template>
+    </Modal>
   </PageContainer>
 </template>

@@ -161,8 +161,6 @@ async function handleRecordPayment() {
       <span class="text-ink font-semibold">{{ orderId }}</span>
     </div>
 
-    <SampleNotice text="Sales Order Lifecycle: Step tracker guides document transitions to Delivery Note and Sales Invoice." />
-
     <div v-if="order" class="space-y-6">
       <!-- Order Header Card -->
       <div class="bg-white rounded-3xl border border-stone-border shadow-card p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">

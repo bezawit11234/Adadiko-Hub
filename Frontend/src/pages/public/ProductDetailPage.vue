@@ -99,7 +99,7 @@ const moduleProduct = computed(() => {
         <div class="flex items-center gap-2">
           <AppIcon name="shield" :size="16" className="text-signal" />
           <h4 class="text-xs font-bold uppercase tracking-wider text-ink font-heading">
-            Frappe v16 & ERPNext Integration Architecture
+            Enterprise Cloud Integration Architecture
           </h4>
         </div>
         <p class="text-xs text-ink-muted leading-relaxed">

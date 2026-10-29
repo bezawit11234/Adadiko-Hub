@@ -132,6 +132,12 @@ const routes: RouteRecordRaw[] = [
         meta: { module: 'sales', allowedRoles: ['sales_rep', 'sales_manager', 'admin'] },
       },
       {
+        path: 'sales/quotations/new',
+        name: 'sales-quotation-new',
+        component: () => import('@/pages/sales/NewQuotationPage.vue'),
+        meta: { module: 'sales', allowedRoles: ['sales_rep', 'sales_manager', 'admin'] },
+      },
+      {
         path: 'sales/orders',
         name: 'sales-orders',
         component: () => import('@/pages/sales/OrdersPage.vue'),

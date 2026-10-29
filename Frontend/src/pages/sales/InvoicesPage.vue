@@ -125,8 +125,6 @@ function onRowClick(row: SalesInvoice) {
 
 <template>
   <PageContainer max-width="2xl">
-    <SampleNotice text="ERPNext Sales Invoice & Payment Entry DocTypes: Accounts receivable records with plain 'Customer owes' terminology." />
-
     <SectionHeading
       title="Sales Invoices & Customer Receivables"
       description="Track billed orders, unpaid balances, overdue collections, and record incoming wire transfers."

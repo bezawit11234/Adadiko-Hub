@@ -46,6 +46,7 @@ export interface SalesApi {
   listSalesOrders(): Promise<ApiResult<SalesOrder[]>>
   getSalesOrder(id: string): Promise<ApiResult<SalesOrder>>
   createSalesOrder(payload: Omit<SalesOrder, 'id' | 'stage' | 'status' | 'deliveryStatus' | 'billingStatus'>): Promise<ApiResult<SalesOrder>>
+  listItems(): Promise<ApiResult<{ itemCode: string; itemName: string; rate: number; stockAvailable: number; warehouse: string }[]>>
   createDelivery(salesOrderId: string): Promise<ApiResult<DeliveryNote>>
   listDeliveries(): Promise<ApiResult<DeliveryNote[]>>
   createInvoiceFromOrder(salesOrderId: string): Promise<ApiResult<SalesInvoice>>
@@ -383,6 +384,19 @@ class MockSalesApi implements SalesApi {
     this.saveState()
     return { ok: true, data: { ...found } }
   }
+
+  async listItems(): Promise<ApiResult<{ itemCode: string; itemName: string; rate: number; stockAvailable: number; warehouse: string }[]>> {
+    await this.delay()
+    return {
+      ok: true,
+      data: [
+        { itemCode: 'ITEM-SOLAR-PANEL', itemName: 'Solar Panel 400W Monocrystalline', rate: 180, stockAvailable: 50, warehouse: 'Main Warehouse' },
+        { itemCode: 'ITEM-BATTERY-PACK', itemName: 'Lithium Battery Pack 5kWh', rate: 1250, stockAvailable: 20, warehouse: 'Main Warehouse' },
+        { itemCode: 'ITEM-HYBRID-INV', itemName: 'Hybrid Inverter 5kVA', rate: 850, stockAvailable: 15, warehouse: 'Main Warehouse' },
+        { itemCode: 'ITEM-CABLE-KIT', itemName: 'Solar Cable & Connector Kit 100m', rate: 95, stockAvailable: 100, warehouse: 'Main Warehouse' },
+      ],
+    }
+  }
 }
 
 /**
@@ -457,15 +471,15 @@ class FrappeSalesApi implements SalesApi {
   }
 
   async createCustomer(payload: Omit<Customer, 'id' | 'createdDate'>): Promise<ApiResult<Customer>> {
-    const res = await frappeFetch<any>('/api/resource/Customer', {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.create_customer', {
       method: 'POST',
       body: JSON.stringify({
         customer_name: payload.name,
-        customer_type: 'Company',
-        customer_group: payload.group || 'Commercial',
-        territory: payload.territory || 'All Territories',
-        email_id: payload.email,
-        mobile_no: payload.phone,
+        email: payload.email,
+        phone: payload.phone,
+        territory: payload.territory,
+        customer_group: payload.group,
+        notes: payload.notes,
       }),
     })
     if (!res.ok || !res.data) return { ok: false, error: res.error }
@@ -497,22 +511,38 @@ class FrappeSalesApi implements SalesApi {
 
   async createQuotation(payload: Omit<Quotation, 'id'>): Promise<ApiResult<Quotation>> {
     const docItems = payload.items.map((i) => ({
-      item_code: i.itemCode,
+      itemCode: i.itemCode,
+      itemName: i.itemName,
       qty: i.qty,
       rate: i.rate,
     }))
-    const res = await frappeFetch<any>('/api/resource/Quotation', {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.create_quotation', {
       method: 'POST',
       body: JSON.stringify({
-        quotation_to: 'Customer',
-        party_name: payload.customerId || payload.customerName,
-        transaction_date: payload.date || new Date().toISOString().split('T')[0],
+        customer: payload.customerId || payload.customerName,
         valid_till: payload.validTill,
         items: docItems,
+        submit: false,
       }),
     })
     if (!res.ok || !res.data) return { ok: false, error: res.error }
     return { ok: true, data: mapQuotation(res.data) }
+  }
+
+  async listItems(): Promise<ApiResult<{ itemCode: string; itemName: string; rate: number; stockAvailable: number; warehouse: string }[]>> {
+    const res = await frappeFetch<any[]>('/api/method/adadiko_hub.api.list_items')
+    if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+      return { ok: true, data: res.data }
+    }
+    return {
+      ok: true,
+      data: [
+        { itemCode: 'ITEM-SOLAR-PANEL', itemName: 'Solar Panel 400W Monocrystalline', rate: 180, stockAvailable: 50, warehouse: 'Main Warehouse' },
+        { itemCode: 'ITEM-BATTERY-PACK', itemName: 'Lithium Battery Pack 5kWh', rate: 1250, stockAvailable: 20, warehouse: 'Main Warehouse' },
+        { itemCode: 'ITEM-HYBRID-INV', itemName: 'Hybrid Inverter 5kVA', rate: 850, stockAvailable: 15, warehouse: 'Main Warehouse' },
+        { itemCode: 'ITEM-CABLE-KIT', itemName: 'Solar Cable & Connector Kit 100m', rate: 95, stockAvailable: 100, warehouse: 'Main Warehouse' },
+      ],
+    }
   }
 
   async listSalesOrders(): Promise<ApiResult<SalesOrder[]>> {
@@ -725,10 +755,11 @@ const frappeApiInstance = new FrappeSalesApi()
  * Access adapter based on environment variable VITE_API_MODE (mock | frappe)
  */
 export function getSalesApi(): SalesApi {
-  let mode = import.meta.env.VITE_API_MODE
+  let mode = (import.meta.env.VITE_API_MODE as string) || 'frappe'
   if (typeof localStorage !== 'undefined') {
     const stored = localStorage.getItem('adadiko_api_mode')
-    if (stored === 'mock' || stored === 'frappe') mode = stored
+    if (stored === 'mock') mode = 'mock'
+    else mode = 'frappe'
   }
   if (mode === 'frappe') {
     return frappeApiInstance

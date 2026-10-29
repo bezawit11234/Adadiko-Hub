@@ -11,8 +11,8 @@ const mobileMenuOpen = ref(false)
 const navLinks = [
   { name: 'Products', path: '/products' },
   { name: 'Solutions', path: '/solutions' },
+  { name: 'Solutions', path: '/solutions' },
   { name: 'Pricing', path: '/pricing' },
-  { name: 'Role Guide', path: '/demo' },
   { name: 'Help & Docs', path: '/help' },
 ]
 </script>
@@ -22,7 +22,7 @@ const navLinks = [
     <!-- Top Announcement Bar -->
     <div class="bg-ink-navy text-white text-xs py-2 px-4 text-center font-medium flex items-center justify-center gap-2">
       <span class="w-1.5 h-1.5 rounded-full bg-signal" />
-      <span>Adadiko Hub is engineered for seamless Frappe / ERPNext v16 enterprise integration.</span>
+      <span>Adadiko Hub Enterprise Cloud — Powered by High-Performance Architecture.</span>
       <RouterLink to="/checkout" class="underline text-signal hover:text-white ml-1">
         Get Started Free →
       </RouterLink>
@@ -138,7 +138,7 @@ const navLinks = [
             </p>
             <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-ink-deep border border-ink-muted/40 text-xs text-stone-bg/90">
               <span class="w-2 h-2 rounded-full bg-status-green" />
-              <span>Native Frappe & ERPNext v16 Engine Ready</span>
+              <span>Enterprise Cloud Engine Active</span>
             </div>
           </div>
 
@@ -162,7 +162,6 @@ const navLinks = [
             <ul class="space-y-2 text-sm">
               <li><RouterLink to="/solutions" class="hover:text-white transition-colors">Wholesale & Distribution</RouterLink></li>
               <li><RouterLink to="/pricing" class="hover:text-white transition-colors">Pricing & Plans</RouterLink></li>
-              <li><RouterLink to="/demo" class="hover:text-white transition-colors">Role Tour & Guide</RouterLink></li>
               <li><RouterLink to="/help" class="hover:text-white transition-colors">Help Center</RouterLink></li>
             </ul>
           </div>
@@ -179,7 +178,7 @@ const navLinks = [
         </div>
 
         <div class="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-stone-bg/50 gap-4">
-          <p>© 2026 Adadiko Systems Inc. All rights reserved. Built on ERPNext v16.</p>
+          <p>© 2026 Adadiko Systems Inc. All rights reserved. Enterprise Cloud Edition.</p>
           <div class="flex items-center gap-6">
             <span>Privacy Policy</span>
             <span>Terms of Service</span>

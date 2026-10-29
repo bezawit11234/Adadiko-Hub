@@ -8,8 +8,8 @@ const searchQuery = ref('')
 
 const faqs = [
   {
-    q: 'How does Adadiko Hub connect with ERPNext / Frappe v16?',
-    a: 'Adadiko Hub screens interact strictly via our typed Service layer (SalesApi, AuthApi). In this mock phase, data is handled by in-memory reactive state. In the upcoming Frappe phase, FrappeSalesApi calls the ERPNext REST endpoints (like erpnext.selling.doctype.sales_order.sales_order.make_delivery_note).',
+    q: 'How does Adadiko Hub connect with backend business engines?',
+    a: 'Adadiko Hub interfaces via a secure, high-performance REST/RPC Service layer (SalesApi, AuthApi), driving multi-tenant workspaces with real-time data persistence, instant order generation, delivery packing, and invoice settlement.',
   },
   {
     q: 'Can our company add modules after signing up?',

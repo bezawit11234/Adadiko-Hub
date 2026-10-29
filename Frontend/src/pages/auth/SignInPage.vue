@@ -12,7 +12,7 @@ import TextField from '@/components/common/TextField.vue'
 
 const router = useRouter()
 const route = useRoute()
-const { signIn, apiMode, setApiMode } = useSession()
+const { signIn } = useSession()
 
 const workspaceSlug = ref(
   (route.query.workspace as string) || getStoredSlug() || ''
@@ -64,39 +64,12 @@ async function handleSignIn() {
 
 <template>
   <div class="space-y-6">
-    <!-- Dev Mode Switcher -->
-    <div class="flex items-center justify-between p-2 rounded-2xl bg-stone-bg border border-stone-border text-xs">
-      <span class="font-semibold text-ink-muted flex items-center gap-1.5 pl-1">
-        <AppIcon name="cpu" :size="14" />
-        Backend Mode:
-      </span>
-      <div class="flex items-center gap-1">
-        <button
-          type="button"
-          class="px-2.5 py-1 rounded-xl font-bold transition-all"
-          :class="apiMode === 'frappe' ? 'bg-signal text-white shadow-sm' : 'text-ink-muted hover:text-ink'"
-          @click="setApiMode('frappe')"
-        >
-          ERPNext v16
-        </button>
-        <button
-          type="button"
-          class="px-2.5 py-1 rounded-xl font-bold transition-all"
-          :class="apiMode === 'mock' ? 'bg-ink-navy text-white shadow-sm' : 'text-ink-muted hover:text-ink'"
-          @click="setApiMode('mock')"
-        >
-          Mock Mode
-        </button>
-      </div>
-    </div>
-
     <div class="text-center space-y-1">
       <h2 class="text-2xl font-black text-ink font-heading">
         Sign in to your workspace
       </h2>
       <p class="text-xs text-ink-muted">
-        <span v-if="apiMode === 'frappe'">Connected to isolated multi-tenant ERPNext sites.</span>
-        <span v-else>Sign in with your workspace credentials.</span>
+        Sign in with your company credentials to access your workspace.
       </p>
     </div>
 

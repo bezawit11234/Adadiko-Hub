@@ -41,8 +41,6 @@ const totalMonthlyCost = computed(() => {
 
 <template>
   <PageContainer max-width="2xl">
-    <SampleNotice text="Workspace Plan & Subscriptions: Manage organization modules and simulate SaaS billing totals." />
-
     <SectionHeading
       title="Workspace Plan & Modules"
       description="Review what your company bought, activate extra business modules, and monitor billing."

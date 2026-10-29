@@ -49,8 +49,6 @@ onMounted(async () => {
       <span class="text-ink font-semibold">{{ customer?.name || 'Customer Detail' }}</span>
     </div>
 
-    <SampleNotice text="Customer Profile: Aggregated outstanding debt balance and timeline of orders & invoices." />
-
     <div v-if="customer" class="space-y-6">
       <!-- Customer Header Card -->
       <div class="bg-white rounded-3xl border border-stone-border shadow-card p-6 sm:p-8 flex flex-col md:flex-row md:items-start justify-between gap-6">

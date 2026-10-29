@@ -16,24 +16,22 @@ const toast = useToast()
 const orgName = ref(currentOrg.value.name)
 const currency = ref('USD ($)')
 const timezone = ref('UTC+03:00 (East Africa Time)')
-const frappeApiMode = ref('mock')
+const environmentStatus = ref('Production Cloud (Active)')
 
 function saveSettings() {
   setOrganization({
     ...currentOrg.value,
     name: orgName.value,
   })
-  toast.success('Settings Saved', 'Workspace settings have been updated.')
+  toast.success('Settings Saved', 'Workspace preferences have been updated.')
 }
 </script>
 
 <template>
   <PageContainer max-width="lg">
-    <SampleNotice text="Workspace Settings: Tenant configuration, currency, and Frappe v16 API mode selection." />
-
     <SectionHeading
       title="Workspace Settings"
-      description="Manage organization preferences, currency defaults, and Frappe server connection parameters."
+      description="Manage organization preferences, currency defaults, and system parameters."
     />
 
     <div class="bg-white rounded-3xl border border-stone-border shadow-soft p-6 sm:p-8 space-y-6">
@@ -54,14 +52,8 @@ function saveSettings() {
           <TextField v-model="timezone" />
         </Field>
 
-        <Field label="API Integration Adapter Mode">
-          <select
-            v-model="frappeApiMode"
-            class="block w-full rounded-xl border border-stone-border bg-white px-3.5 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-signal/20 focus:border-signal"
-          >
-            <option value="mock">Mock Sales API (Evaluation / Demo Mode)</option>
-            <option value="frappe">Frappe / ERPNext v16 API Adapter</option>
-          </select>
+        <Field label="Environment Status">
+          <TextField v-model="environmentStatus" disabled />
         </Field>
       </div>
 

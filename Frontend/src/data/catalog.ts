@@ -129,7 +129,7 @@ export const PRICING_TIERS: PricingTier[] = [
       'Up to 3 team members included',
       'Standard email support (24h response)',
       'Daily automated cloud backups',
-      'Ready for ERPNext v16 Frappe Cloud integration',
+      'Ready for high-availability enterprise cloud deployment',
     ],
   },
   {

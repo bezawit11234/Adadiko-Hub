@@ -15,7 +15,7 @@ import { MODULE_CATALOG } from '@/data/catalog'
         <div class="lg:col-span-7 space-y-6">
           <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-signal-subtle border border-signal/20 text-xs font-semibold text-signal">
             <span class="w-2 h-2 rounded-full bg-signal" />
-            <span>Built on Frappe & ERPNext v16 Open Architecture</span>
+            <span>Modern High-Performance Cloud Business Architecture</span>
           </div>
 
           <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-ink font-heading leading-[1.08]">
@@ -255,7 +255,7 @@ import { MODULE_CATALOG } from '@/data/catalog'
               <AppIcon name="layers" :size="20" />
             </div>
             <h4 class="text-lg font-bold text-ink font-heading">
-              Frappe v16 Native Core
+              High-Performance ERP Core
             </h4>
             <p class="text-sm text-ink-muted leading-relaxed">
               Architected from the ground up to connect cleanly with ERPNext DocTypes: Quotation, Sales Order, Delivery Note, and Payment Entry.

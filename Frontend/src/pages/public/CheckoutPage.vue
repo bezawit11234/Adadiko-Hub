@@ -89,7 +89,7 @@ interface ProvisioningStep {
 const PROVISIONING_STEPS: ProvisioningStep[] = [
   { id: 1, label: 'Workspace Registration', detail: 'Allocating tenant records on control cluster' },
   { id: 2, label: 'Database Initialization', detail: 'Creating isolated MariaDB database & user credentials' },
-  { id: 3, label: 'ERPNext & Hub Installation', detail: 'Installing ERPNext v16 distribution schema & Adadiko Hub' },
+  { id: 3, label: 'Enterprise Suite Installation', detail: 'Installing enterprise distribution schema & Adadiko Hub' },
   { id: 4, label: 'Company & Admin Setup', detail: 'Configuring standard chart of accounts & admin credentials' },
   { id: 5, label: 'Security & Activation', detail: 'Synchronizing plan modules, CSRF security & health check' },
 ]

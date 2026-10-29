@@ -30,8 +30,8 @@ const isNewModalOpen = ref(false)
 const newName = ref('')
 const newEmail = ref('')
 const newPhone = ref('')
-const newTerritory = ref('')
-const newGroup = ref('Commercial Distributor')
+const newTerritory = ref('All Territories')
+const newGroup = ref('Commercial')
 const newNotes = ref('')
 const saving = ref(false)
 
@@ -94,11 +94,11 @@ async function handleCreateCustomer() {
   saving.value = true
   try {
     const res = await salesApi.createCustomer({
-      name: newName.value,
-      email: newEmail.value || 'info@customer.example',
-      phone: newPhone.value || '+254 700 000000',
-      territory: newTerritory.value || 'Regional',
-      group: newGroup.value,
+      name: newName.value.trim(),
+      email: newEmail.value.trim() || 'info@customer.example',
+      phone: newPhone.value.trim() || '+254 700 000000',
+      territory: newTerritory.value.trim() || 'All Territories',
+      group: newGroup.value.trim() || 'Commercial',
       status: 'Active',
       amountOwed: 0,
       assignedTo: 'usr_rep_1',
@@ -111,7 +111,8 @@ async function handleCreateCustomer() {
       newName.value = ''
       newEmail.value = ''
       newPhone.value = ''
-      newTerritory.value = ''
+      newTerritory.value = 'All Territories'
+      newGroup.value = 'Commercial'
       newNotes.value = ''
       loadCustomers()
     } else {
@@ -125,8 +126,6 @@ async function handleCreateCustomer() {
 
 <template>
   <PageContainer max-width="2xl">
-    <SampleNotice text="ERPNext Customer DocType Directory: Real-time balance calculations derived from unpaid Sales Invoices." />
-
     <SectionHeading
       title="Customer Accounts"
       description="Manage customer profiles, credit balances owed, contact details, and order history."
@@ -243,7 +242,7 @@ async function handleCreateCustomer() {
     <Modal
       :is-open="isNewModalOpen"
       title="Create New Customer Account"
-      subtitle="Adds a customer record to ERPNext Customer DocType."
+      subtitle="Register a new customer profile into your verified directory."
       max-width="md"
       @close="isNewModalOpen = false"
     >

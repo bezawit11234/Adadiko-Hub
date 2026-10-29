@@ -60,9 +60,6 @@ const followUpCustomers = computed(() => {
 
 <template>
   <PageContainer max-width="2xl">
-    <!-- Notice -->
-    <SampleNotice text="Sales Rep Workspace: Displaying active pipeline and follow-up queues for current rep." />
-
     <!-- Welcome & Hero Header with Big Button -->
     <div class="bg-white rounded-3xl border border-stone-border shadow-soft p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
       <div class="space-y-1.5">

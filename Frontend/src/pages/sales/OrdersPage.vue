@@ -76,8 +76,6 @@ function onRowClick(row: SalesOrder) {
 
 <template>
   <PageContainer max-width="2xl">
-    <SampleNotice text="ERPNext Sales Order DocType: Master commercial contract driving Delivery Note packing and Sales Invoice billing." />
-
     <SectionHeading
       title="Sales Orders"
       description="Track orders from confirmation through dispatch, billing, and full cash reconciliation."

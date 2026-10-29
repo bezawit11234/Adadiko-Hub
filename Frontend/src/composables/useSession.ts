@@ -19,8 +19,8 @@ const emptyOrg: Organization = {
 
 function loadStoredMode(): 'mock' | 'frappe' {
   const stored = localStorage.getItem(STORAGE_KEY_MODE)
-  if (stored === 'mock' || stored === 'frappe') return stored
-  return (import.meta.env.VITE_API_MODE as 'mock' | 'frappe') || 'mock'
+  if (stored === 'mock') return 'mock'
+  return 'frappe'
 }
 
 const apiMode = ref<'mock' | 'frappe'>(loadStoredMode())

@@ -79,8 +79,6 @@ async function handleRecordPayment() {
       <span class="text-ink font-semibold">{{ invoiceId }}</span>
     </div>
 
-    <SampleNotice text="Sales Invoice DocType: Detailed breakdown of charges, customer debt balance, and payment settlement actions." />
-
     <div v-if="invoice" class="space-y-6">
       <!-- Invoice Header Card -->
       <div class="bg-white rounded-3xl border border-stone-border shadow-card p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">

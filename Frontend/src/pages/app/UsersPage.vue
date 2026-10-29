@@ -190,7 +190,6 @@ const matrixRoles: Role[] = ['sales_rep', 'sales_manager', 'accountant', 'storek
         Invite your team with a name, email, role, and password. They will sign in from the Sign In page whenever they open the site. You will also sign in with the password you just created the next time you return.
       </p>
     </div>
-    <SampleNotice text="Team & Access Control: User profiles with Frappe v16 Role Profile mappings and Sales permission matrix." />
 
     <SectionHeading
       title="Team Members & Permissions"
