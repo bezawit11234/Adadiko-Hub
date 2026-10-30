@@ -42,17 +42,17 @@ const sizeClasses = computed(() => {
 const variantClasses = computed(() => {
   switch (props.variant) {
     case 'primary':
-      return 'bg-signal text-white hover:bg-[#DE782B] active:bg-[#C96B24] shadow-sm'
+      return 'bg-signal text-white hover:bg-signal-hover active:bg-signal-hover shadow-sm'
     case 'secondary':
-      return 'bg-ink-navy text-white hover:bg-ink-deep active:bg-black shadow-sm'
+      return 'bg-ink-navy text-white hover:bg-ink-deep active:bg-ink shadow-sm'
     case 'outline':
-      return 'border border-stone-border bg-white text-ink hover:bg-stone-muted active:bg-[#E5E1D8]'
+      return 'border border-stone-border bg-stone-surface text-ink hover:bg-stone-muted active:bg-stone-muted'
     case 'ghost':
       return 'bg-transparent text-ink-muted hover:text-ink hover:bg-stone-muted/70 active:bg-stone-muted'
     case 'danger':
-      return 'bg-status-red text-white hover:bg-[#C32C2E] active:bg-[#A82224]'
+      return 'bg-status-red text-white hover:opacity-90 active:opacity-80'
     case 'subtle':
-      return 'bg-signal-subtle text-signal hover:bg-[#FCE8D8] active:bg-[#F9D8C0]'
+      return 'bg-signal-subtle text-signal hover:bg-signal/20 active:bg-signal/30'
     default:
       return 'bg-signal text-white'
   }

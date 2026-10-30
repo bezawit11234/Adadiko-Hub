@@ -411,7 +411,7 @@ const openWorkspaceSite = () => {
             <div
               v-for="mod in catalogModules"
               :key="mod.key"
-              class="flex items-center justify-between p-2 rounded-lg hover:bg-white transition-colors cursor-pointer"
+              class="flex items-center justify-between p-2 rounded-lg hover:bg-stone-surface transition-colors cursor-pointer"
               @click="toggleModule(mod.key)"
             >
               <div class="flex items-center gap-2">

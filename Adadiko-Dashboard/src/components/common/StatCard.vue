@@ -54,28 +54,28 @@ const cardTheme = computed(() => {
   }
   if (props.variant === 'success') {
     return {
-      container: 'bg-white border-stone-border text-ink shadow-soft',
+      container: 'bg-stone-surface border-stone-border text-ink shadow-soft',
       iconBox: 'bg-status-green-bg text-status-green',
       infoBadge: 'text-ink-muted bg-stone-muted',
     }
   }
   if (props.variant === 'info') {
     return {
-      container: 'bg-white border-stone-border text-ink shadow-soft',
+      container: 'bg-stone-surface border-stone-border text-ink shadow-soft',
       iconBox: 'bg-status-blue-bg text-status-blue',
       infoBadge: 'text-ink-muted bg-stone-muted',
     }
   }
   if (props.variant === 'warning') {
     return {
-      container: 'bg-white border-stone-border text-ink shadow-soft',
+      container: 'bg-stone-surface border-stone-border text-ink shadow-soft',
       iconBox: 'bg-status-amber-bg text-status-amber',
       infoBadge: 'text-ink-muted bg-stone-muted',
     }
   }
   // Default: soft mint or stone
   return {
-    container: 'bg-white border-stone-border text-ink shadow-soft',
+    container: 'bg-stone-surface border-stone-border text-ink shadow-soft',
     iconBox: 'bg-stone-muted text-ink',
     infoBadge: 'text-ink-muted bg-stone-muted',
   }

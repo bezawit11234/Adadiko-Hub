@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useSession } from '@/composables/useSession'
 import { useAccess } from '@/composables/useAccess'
+import { useTheme } from '@/composables/useTheme'
 import AppIcon from '@/components/common/AppIcon.vue'
 import Badge from '@/components/common/Badge.vue'
 import type { StaffRole } from '@/types'
@@ -11,6 +12,11 @@ const router = useRouter()
 const route = useRoute()
 const { currentUser, currentRole, currentRoleMeta, apiMode, switchRole, setApiMode, logout } = useSession()
 const { canAccessRoute } = useAccess()
+const { currentTheme, toggleTheme, initTheme } = useTheme()
+
+onMounted(() => {
+  initTheme()
+})
 
 // Search query in top bar
 const globalSearch = ref('')
@@ -209,7 +215,7 @@ const handleGlobalSearch = () => {
           <button
             type="button"
             @click="mobileMenuOpen = !mobileMenuOpen"
-            class="lg:hidden p-2 rounded-xl bg-white border border-stone-border text-ink hover:bg-stone-muted"
+            class="lg:hidden p-2 rounded-xl bg-stone-surface border border-stone-border text-ink hover:bg-stone-muted"
             aria-label="Toggle navigation"
           >
             <AppIcon name="more-vertical" :size="18" />
@@ -225,16 +231,16 @@ const handleGlobalSearch = () => {
             </p>
           </div>
 
-          <!-- Topbar Right: Search Input + Mode Pill + Bell -->
+          <!-- Topbar Right: Search Input + Mode Pill + Theme Toggle + Bell -->
           <div class="flex items-center gap-3">
-            <!-- Pill Search Bar (Matching image with stone border and white bg) -->
+            <!-- Pill Search Bar -->
             <div class="relative w-48 sm:w-64">
               <input
                 type="text"
                 v-model="globalSearch"
                 @keyup.enter="handleGlobalSearch"
                 placeholder="Search..."
-                class="w-full pl-4 pr-9 py-1.5 text-xs bg-white text-ink rounded-full border border-stone-border focus:outline-none focus:ring-1 focus:ring-signal focus:border-signal shadow-2xs transition-colors"
+                class="w-full pl-4 pr-9 py-1.5 text-xs bg-stone-surface text-ink rounded-full border border-stone-border focus:outline-none focus:ring-1 focus:ring-signal focus:border-signal shadow-2xs transition-colors"
               />
               <button
                 type="button"
@@ -253,7 +259,7 @@ const handleGlobalSearch = () => {
               :class="
                 apiMode === 'frappe'
                   ? 'bg-status-green-bg text-status-green border-status-green/30'
-                  : 'bg-white text-signal border-signal/30'
+                  : 'bg-stone-surface text-signal border-signal/30'
               "
               :title="'Switch mode (current: ' + apiMode.toUpperCase() + ')'"
             >
@@ -264,8 +270,32 @@ const handleGlobalSearch = () => {
               <span>{{ apiMode === 'frappe' ? 'ERPNext' : 'Mock' }}</span>
             </button>
 
+            <!-- Theme Sun / Moon Toggle Button -->
+            <button
+              type="button"
+              @click="toggleTheme"
+              class="w-8 h-8 rounded-full bg-stone-surface border border-stone-border flex items-center justify-center text-ink-muted hover:text-ink shadow-2xs cursor-pointer transition-colors"
+              :aria-label="currentTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+              :title="currentTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+            >
+              <svg v-if="currentTheme === 'dark'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-signal">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-ink">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
+            </button>
+
             <!-- Notification Bell Icon -->
-            <div class="w-8 h-8 rounded-full bg-white border border-stone-border flex items-center justify-center text-ink-muted hover:text-ink shadow-2xs cursor-pointer">
+            <div class="w-8 h-8 rounded-full bg-stone-surface border border-stone-border flex items-center justify-center text-ink-muted hover:text-ink shadow-2xs cursor-pointer">
               <AppIcon name="bell" :size="15" />
             </div>
           </div>

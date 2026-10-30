@@ -135,7 +135,7 @@ const getLogBadge = (type: LogEntry['type']) => {
           type="text"
           v-model="searchQuery"
           placeholder="Search activity, staff, details..."
-          class="w-full pl-9 pr-3 py-1.5 bg-white text-xs text-ink rounded-xl border border-stone-border focus:outline-none focus:ring-1 focus:ring-signal focus:border-signal transition-colors"
+          class="w-full pl-9 pr-3 py-1.5 bg-stone-surface text-xs text-ink rounded-xl border border-stone-border focus:outline-none focus:ring-1 focus:ring-signal focus:border-signal transition-colors"
         />
       </div>
     </div>

@@ -21,7 +21,7 @@ const { toasts, dismiss } = useToast()
         <div
           v-for="toast in toasts"
           :key="toast.id"
-          class="pointer-events-auto rounded-xl border border-stone-border bg-white p-4 shadow-lift flex items-start gap-3"
+          class="pointer-events-auto rounded-xl border border-stone-border bg-stone-surface p-4 shadow-lift flex items-start gap-3"
         >
           <div class="shrink-0 mt-0.5">
             <div

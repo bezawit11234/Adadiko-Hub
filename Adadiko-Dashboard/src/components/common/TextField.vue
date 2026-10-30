@@ -57,7 +57,7 @@ const borderClass = computed(() => {
       :disabled="disabled"
       :readonly="readonly"
       :class="[
-        'block w-full rounded-xl border bg-white px-3.5 py-2 text-sm text-ink placeholder:text-ink-light/60 transition-all duration-150 focus:outline-none focus:ring-2 disabled:bg-stone-muted/50 disabled:cursor-not-allowed',
+        'block w-full rounded-xl border bg-stone-surface px-3.5 py-2 text-sm text-ink placeholder:text-ink-light/60 transition-all duration-150 focus:outline-none focus:ring-2 disabled:bg-stone-muted/50 disabled:cursor-not-allowed',
         $slots.prefix ? 'pl-9' : '',
         $slots.suffix ? 'pr-9' : '',
         tabular ? 'num-tabular' : '',

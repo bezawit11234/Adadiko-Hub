@@ -64,7 +64,7 @@ watch(
       >
         <div
           :class="[
-            'w-full bg-white rounded-2xl border border-stone-border shadow-modal overflow-hidden flex flex-col max-h-[90vh]',
+            'w-full bg-stone-surface rounded-2xl border border-stone-border shadow-modal overflow-hidden flex flex-col max-h-[90vh]',
             maxWidth === 'sm' ? 'max-w-md' : '',
             maxWidth === 'md' ? 'max-w-lg' : '',
             maxWidth === 'lg' ? 'max-w-2xl' : '',

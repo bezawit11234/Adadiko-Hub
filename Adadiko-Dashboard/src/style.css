@@ -4,26 +4,75 @@
 
 @layer base {
   :root {
-    --bg-stone: #F4F1EC;
-    --border-stone: #E7E2D9;
-    --text-navy: #14283D;
-    --signal-orange: #F08A3C;
-    --signal-orange-hover: #DE782B;
-    --signal-orange-subtle: #FDF2E9;
+    --color-stone-bg: #F4F1EC;
+    --color-stone-border: #E7E2D9;
+    --color-stone-surface: #FFFFFF;
+    --color-stone-muted: #EFECE5;
+    --color-stone-subtle: #FAF8F5;
+
+    --color-ink: #14283D;
+    --color-ink-navy: #14283D;
+    --color-ink-deep: #0D1C2C;
+    --color-ink-muted: #4C6175;
+    --color-ink-light: #7A8D9F;
+
+    --color-signal-orange: #F08A3C;
+    --color-signal-hover: #DE782B;
+    --color-signal-subtle: #FDF2E9;
+
+    --color-status-green: #1E8E5A;
+    --color-status-green-bg: #EBF7F0;
+    --color-status-red: #D9383A;
+    --color-status-red-bg: #FDF1F1;
+    --color-status-amber: #DE872A;
+    --color-status-amber-bg: #FEF7ED;
+    --color-status-blue: #2C7BE5;
+    --color-status-blue-bg: #EFF6FF;
+
+    --focus-ring: #F08A3C;
+  }
+
+  html.dark {
+    --color-stone-bg: #0B131E;
+    --color-stone-border: #1E2D3D;
+    --color-stone-surface: #142232;
+    --color-stone-muted: #1A2C40;
+    --color-stone-subtle: #0F1A26;
+
+    --color-ink: #F0F4F8;
+    --color-ink-navy: #0D1926;
+    --color-ink-deep: #081018;
+    --color-ink-muted: #94A3B8;
+    --color-ink-light: #64748B;
+
+    --color-signal-orange: #FB923C;
+    --color-signal-hover: #F97316;
+    --color-signal-subtle: #2A1B0E;
+
+    --color-status-green: #34D399;
+    --color-status-green-bg: #062E1E;
+    --color-status-red: #F87171;
+    --color-status-red-bg: #381313;
+    --color-status-amber: #FBBF24;
+    --color-status-amber-bg: #382305;
+    --color-status-blue: #60A5FA;
+    --color-status-blue-bg: #0F2644;
+
+    --focus-ring: #FB923C;
   }
 
   html {
     font-family: 'DM Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
-    color: #14283D;
-    background-color: #F4F1EC;
+    color: var(--color-ink);
+    background-color: var(--color-stone-bg);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   body {
     min-height: 100vh;
-    background-color: #F4F1EC;
-    color: #14283D;
+    background-color: var(--color-stone-bg);
+    color: var(--color-ink);
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -38,7 +87,7 @@
 
 /* Accessible focus styling */
 :focus-visible {
-  outline: 2px solid #F08A3C;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -61,11 +110,11 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #D8D2C6;
+  background: var(--color-stone-border);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #B8B0A2;
+  background: var(--color-ink-light);
 }
 
 /* Navigation active pill indicator */
@@ -79,6 +128,6 @@
   top: 6px;
   bottom: 6px;
   width: 3.5px;
-  background-color: #F08A3C;
+  background-color: var(--color-signal-orange);
   border-radius: 0 4px 4px 0;
 }

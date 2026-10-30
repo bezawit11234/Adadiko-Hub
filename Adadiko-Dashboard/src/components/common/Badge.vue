@@ -31,7 +31,7 @@ const variantClasses = computed(() => {
       return 'bg-stone-muted text-ink-muted border-stone-border'
     case 'default':
     default:
-      return 'bg-[#F2EFE9] text-ink border-stone-border'
+      return 'bg-stone-muted text-ink border-stone-border'
   }
 })
 
