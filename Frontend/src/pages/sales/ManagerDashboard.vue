@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 import { getSalesApi } from '@/services/sales'
 import { useToast } from '@/composables/useToast'
 import { useSession } from '@/composables/useSession'
-import type { SalesSummary, ApprovalRequest } from '@/types'
+import type { SalesSummary, ApprovalRequest, SalesOrder } from '@/types'
 import StatCard from '@/components/common/StatCard.vue'
 import AppButton from '@/components/common/AppButton.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
@@ -12,7 +12,7 @@ import Badge from '@/components/common/Badge.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import SectionHeading from '@/components/common/SectionHeading.vue'
 import SampleNotice from '@/components/common/SampleNotice.vue'
-import { formatCurrency } from '@/utils/format'
+import { formatCurrency, formatDate } from '@/utils/format'
 
 const salesApi = getSalesApi()
 const toast = useToast()
@@ -22,18 +22,21 @@ const canApprove = computed(() => currentRole.value === 'sales_manager' || curre
 
 const summary = ref<SalesSummary | null>(null)
 const approvals = ref<ApprovalRequest[]>([])
+const allOrders = ref<SalesOrder[]>([])
 const loading = ref(true)
 
 
 async function loadData() {
   loading.value = true
   try {
-    const [summaryRes, approvalsRes] = await Promise.all([
+    const [summaryRes, approvalsRes, ordersRes] = await Promise.all([
       salesApi.getSalesSummary(),
       salesApi.listApprovals(),
+      salesApi.listSalesOrders(),
     ])
     if (summaryRes.ok && summaryRes.data) summary.value = summaryRes.data
     if (approvalsRes.ok && approvalsRes.data) approvals.value = approvalsRes.data
+    if (ordersRes.ok && ordersRes.data) allOrders.value = ordersRes.data
   } finally {
     loading.value = false
   }
@@ -41,6 +44,15 @@ async function loadData() {
 
 onMounted(() => {
   loadData()
+})
+
+const recentCompletedOrders = computed<SalesOrder[]>(() => {
+  if (summary.value?.recentCompletedOrders && summary.value.recentCompletedOrders.length > 0) {
+    return summary.value.recentCompletedOrders.slice(0, 5)
+  }
+  return allOrders.value
+    .filter((o) => o.status === 'Completed' || o.billingStatus === 'Paid')
+    .slice(0, 5)
 })
 
 const pendingApprovals = computed(() => {
@@ -324,6 +336,72 @@ const areaPoints = computed(() => {
 
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- RECENTLY COMPLETED ORDERS (LAST 5) -->
+    <div class="bg-white p-6 rounded-3xl border border-stone-border shadow-soft space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-border">
+        <div>
+          <h3 class="text-base font-bold text-ink font-heading flex items-center gap-2">
+            <AppIcon name="check-circle" :size="18" className="text-status-green" />
+            <span>Recently Completed Orders</span>
+          </h3>
+          <p class="text-xs text-ink-muted">Last 5 fulfilled and fully paid sales orders</p>
+        </div>
+        <RouterLink to="/app/sales/orders" class="text-xs text-signal font-semibold hover:underline">
+          All Orders →
+        </RouterLink>
+      </div>
+
+      <div v-if="recentCompletedOrders.length === 0" class="py-10 text-center text-xs text-ink-muted">
+        No completed orders yet. Orders will appear here once delivered and fully paid.
+      </div>
+
+      <div v-else class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="text-xs uppercase tracking-wider text-ink-muted border-b border-stone-border">
+            <tr>
+              <th class="py-2.5 font-semibold">Order ID</th>
+              <th class="py-2.5 font-semibold">Customer</th>
+              <th class="py-2.5 font-semibold">Order Date</th>
+              <th class="py-2.5 font-semibold text-right">Grand Total</th>
+              <th class="py-2.5 font-semibold text-center">Status</th>
+              <th class="py-2.5 font-semibold text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-stone-border/60">
+            <tr v-for="order in recentCompletedOrders" :key="order.id" class="hover:bg-stone-bg/50 transition-colors">
+              <td class="py-3 font-mono font-bold text-ink">
+                <RouterLink :to="`/app/sales/orders/${order.id}`" class="hover:text-signal transition-colors">
+                  {{ order.id }}
+                </RouterLink>
+              </td>
+              <td class="py-3 font-semibold text-ink">
+                {{ order.customerName }}
+              </td>
+              <td class="py-3 text-xs text-ink-muted">
+                {{ formatDate(order.orderDate) }}
+              </td>
+              <td class="py-3 font-extrabold text-ink num-tabular text-right">
+                {{ formatCurrency(order.grandTotal) }}
+              </td>
+              <td class="py-3 text-center">
+                <Badge variant="success" size="sm" dot>
+                  Paid & Completed
+                </Badge>
+              </td>
+              <td class="py-3 text-right">
+                <RouterLink :to="`/app/sales/orders/${order.id}`">
+                  <span class="text-xs text-signal font-bold hover:underline inline-flex items-center gap-1">
+                    <span>View</span>
+                    <AppIcon name="external-link" :size="12" />
+                  </span>
+                </RouterLink>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 

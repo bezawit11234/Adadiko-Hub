@@ -120,16 +120,30 @@ export function mapSalesOrder(doc: any): SalesOrder {
     deliveryStatus,
     billingStatus,
     assignedTo: doc.owner || '',
+    quotationId:
+      doc.quotation_id ||
+      doc.quotation ||
+      (Array.isArray(doc.items)
+        ? doc.items.find((it: any) => it.prevdoc_doctype === 'Quotation')?.prevdoc_docname
+        : undefined) ||
+      '',
   }
 }
 
 export function mapDeliveryNote(doc: any): DeliveryNote {
+  const items = Array.isArray(doc.items) ? doc.items.map(mapOrderItem) : []
+  let salesOrderId = doc.against_sales_order || ''
+  if (!salesOrderId && items.length > 0 && Array.isArray(doc.items)) {
+    const itemWithSo = doc.items.find((it: any) => it.against_sales_order)
+    if (itemWithSo) salesOrderId = itemWithSo.against_sales_order
+  }
+
   return {
     id: doc.name,
-    salesOrderId: doc.against_sales_order || '',
+    salesOrderId,
     customerName: doc.customer_name || doc.customer || 'Customer',
     postingDate: doc.posting_date || (doc.creation || '').split(' ')[0],
-    items: Array.isArray(doc.items) ? doc.items.map(mapOrderItem) : [],
+    items,
     status: doc.docstatus === 1 ? 'Delivered' : 'Draft',
     preparedBy: doc.owner || 'Storekeeper',
   }
@@ -137,14 +151,14 @@ export function mapDeliveryNote(doc: any): DeliveryNote {
 
 export function mapSalesInvoice(doc: any): SalesInvoice {
   const grandTotal = Number(doc.grand_total ?? 0)
-  const outstandingAmount = Number(doc.outstanding_amount ?? grandTotal)
+  const outstandingAmount = Number(doc.outstanding_amount ?? (doc.status === 'Paid' ? 0 : grandTotal))
   const amountPaid = Math.max(0, grandTotal - outstandingAmount)
 
   let status: SalesInvoice['status'] = 'Unpaid'
-  if (doc.docstatus === 1) {
-    if (outstandingAmount <= 0) {
-      status = 'Paid'
-    } else if (doc.status === 'Overdue') {
+  if (doc.status === 'Paid' || outstandingAmount <= 0.001) {
+    status = 'Paid'
+  } else if (doc.docstatus === 1) {
+    if (doc.status === 'Overdue') {
       status = 'Overdue'
     } else if (amountPaid > 0) {
       status = 'Partially Paid'

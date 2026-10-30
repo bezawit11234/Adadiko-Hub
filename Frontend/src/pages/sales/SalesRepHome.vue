@@ -49,6 +49,24 @@ const myOpenOrders = computed(() => {
   return orders.value.filter((o) => o.status !== 'Completed' && o.status !== 'Cancelled')
 })
 
+const myCompletedOrders = computed(() => {
+  const repEmail = currentUser.value?.email?.toLowerCase() || ''
+  const repName = currentUser.value?.name?.toLowerCase() || ''
+  const repId = currentUser.value?.id?.toLowerCase() || ''
+
+  const completed = orders.value.filter(
+    (o) => o.status === 'Completed' || o.billingStatus === 'Paid'
+  )
+
+  const repSpecific = completed.filter((o) => {
+    const owner = (o.assignedTo || '').toLowerCase()
+    return owner === repEmail || owner === repName || owner === repId
+  })
+
+  const list = repSpecific.length > 0 ? repSpecific : completed
+  return list.slice(0, 5)
+})
+
 const waitingQuotations = computed(() => {
   return quotations.value.filter((q) => q.status === 'Submitted')
 })
@@ -172,6 +190,51 @@ const followUpCustomers = computed(() => {
                 <RouterLink :to="`/app/sales/orders/${order.id}`">
                   <span class="text-xs text-signal font-semibold hover:underline mt-1 inline-block">
                     Open Order Details →
+                  </span>
+                </RouterLink>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- My Recently Completed Orders (Last 5) -->
+        <div class="bg-white rounded-3xl border border-stone-border shadow-soft p-6 space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-stone-border">
+            <h2 class="text-base font-bold text-ink font-heading flex items-center gap-2">
+              <AppIcon name="check-circle" :size="18" className="text-status-green" />
+              <span>My Recently Completed Orders</span>
+            </h2>
+            <span class="text-xs text-ink-muted">Last 5 closed deals</span>
+          </div>
+
+          <div v-if="myCompletedOrders.length === 0" class="py-6 text-center text-xs text-ink-muted">
+            No completed orders yet.
+          </div>
+
+          <div v-else class="space-y-3">
+            <div
+              v-for="order in myCompletedOrders"
+              :key="order.id"
+              class="p-4 rounded-2xl bg-stone-bg/50 border border-stone-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-stone-bg transition-colors"
+            >
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-mono font-bold text-ink">{{ order.id }}</span>
+                  <Badge variant="success" size="sm" dot>Paid & Completed</Badge>
+                </div>
+                <p class="text-sm font-bold text-ink">{{ order.customerName }}</p>
+                <p class="text-xs text-ink-muted">
+                  Completed: <strong>{{ formatDate(order.orderDate) }}</strong>
+                </p>
+              </div>
+
+              <div class="sm:text-right flex sm:flex-col items-center sm:items-end justify-between">
+                <span class="text-base font-extrabold text-ink font-heading num-tabular">
+                  {{ formatCurrency(order.grandTotal) }}
+                </span>
+                <RouterLink :to="`/app/sales/orders/${order.id}`">
+                  <span class="text-xs text-signal font-semibold hover:underline mt-1 inline-block">
+                    View Details →
                   </span>
                 </RouterLink>
               </div>

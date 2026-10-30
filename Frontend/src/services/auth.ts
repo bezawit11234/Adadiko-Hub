@@ -5,6 +5,7 @@
  */
 import type { ApiResult, User, Role, Organization, ModuleKey } from '@/types'
 import { ROLE_DEFINITIONS } from '@/data/roles'
+import { setAppCurrency } from '@/utils/format'
 import {
   frappeFetch,
   setCsrfToken,
@@ -393,6 +394,7 @@ class FrappeAuthApi implements AuthApi {
       company_name?: string
       site_name?: string
       plan_name?: string
+      currency?: string
     }>('/api/method/adadiko_hub.api.get_session', {
       headers: {
         'X-Frappe-Site-Name': currentSite,
@@ -445,8 +447,10 @@ class FrappeAuthApi implements AuthApi {
       subscribedModules: modules,
       createdDate: new Date().toISOString().split('T')[0],
       status: 'active',
+      currency: res.data.currency || 'USD',
     }
 
+    setAppCurrency(org.currency || 'USD')
     writeSession(user, org)
 
     return { ok: true, data: user }

@@ -28,6 +28,7 @@ import {
   MOCK_SALES_SUMMARY,
 } from '@/data/mockSales'
 import { frappeFetch } from './frappeHttp'
+import { setAppCurrency, getAppCurrency } from '@/utils/format'
 import {
   mapCustomer,
   mapQuotation,
@@ -216,6 +217,7 @@ class MockSalesApi implements SalesApi {
       status: 'To Deliver and Bill',
       deliveryStatus: 'Not Delivered',
       billingStatus: 'Not Billed',
+      quotationId: payload.quotationId,
     }
     this.orders.unshift(newOrder)
     this.summary.openOrdersCount++
@@ -368,7 +370,52 @@ class MockSalesApi implements SalesApi {
 
   async getSalesSummary(): Promise<ApiResult<SalesSummary>> {
     await this.delay()
-    return { ok: true, data: { ...this.summary } }
+    const today = new Date().toISOString().split('T')[0]
+    const currentMonth = today.slice(0, 7)
+
+    const paidInvoices = this.invoices.filter((i) => i.status === 'Paid' || i.outstandingAmount <= 0)
+    const unpaidInvoices = this.invoices.filter((i) => i.status !== 'Paid' && i.outstandingAmount > 0)
+    const openOrders = this.orders.filter((o) => o.status !== 'Completed' && o.status !== 'Cancelled')
+    const completedOrders = this.orders.filter((o) => o.status === 'Completed' || o.billingStatus === 'Paid')
+
+    const salesToday =
+      this.payments
+        .filter((p) => p.date === today)
+        .reduce((acc, p) => acc + p.amount, 0) ||
+      paidInvoices
+        .filter((i) => i.postingDate === today)
+        .reduce((acc, i) => acc + i.grandTotal, 0)
+
+    const salesThisMonth =
+      this.payments
+        .filter((p) => (p.date || '').startsWith(currentMonth))
+        .reduce((acc, p) => acc + p.amount, 0) ||
+      paidInvoices
+        .filter((i) => (i.postingDate || '').startsWith(currentMonth))
+        .reduce((acc, i) => acc + i.grandTotal, 0)
+
+    const summary: SalesSummary = {
+      salesToday,
+      salesThisMonth,
+      salesMonthTarget: 60000.0,
+      openOrdersCount: openOrders.length,
+      openOrdersValue: openOrders.reduce((acc, o) => acc + o.grandTotal, 0),
+      unpaidInvoicesCount: unpaidInvoices.length,
+      unpaidInvoicesTotal: unpaidInvoices.reduce((acc, i) => acc + i.outstandingAmount, 0),
+      pipelineCounts: {
+        quotations: this.quotations.length,
+        orders: this.orders.length,
+        delivered: this.deliveries.length,
+        invoiced: this.invoices.length,
+        paid: paidInvoices.length,
+      },
+      recentOrdersOverTime: this.summary.recentOrdersOverTime || [],
+      teamPerformance: this.summary.teamPerformance || [],
+      recentCompletedOrders: completedOrders.slice(0, 5),
+      currency: getAppCurrency(),
+    }
+
+    return { ok: true, data: summary }
   }
 
   async listApprovals(): Promise<ApiResult<ApprovalRequest[]>> {
@@ -578,6 +625,7 @@ class FrappeSalesApi implements SalesApi {
       const order = mapSalesOrder(res.data)
       if (res.data.invoice_id) order.invoiceId = res.data.invoice_id
       if (res.data.delivery_note_id) order.deliveryNoteId = res.data.delivery_note_id
+      if (res.data.quotation_id) order.quotationId = res.data.quotation_id
       return { ok: true, data: order }
     }
 
@@ -597,6 +645,7 @@ class FrappeSalesApi implements SalesApi {
         delivery_date: payload.deliveryDate,
         items: payload.items,
         submit: true,
+        quotation_id: payload.quotationId,
       }),
     })
     if (!res.ok || !res.data) return { ok: false, error: res.error }
@@ -613,6 +662,11 @@ class FrappeSalesApi implements SalesApi {
   }
 
   async listDeliveries(): Promise<ApiResult<DeliveryNote[]>> {
+    const customRes = await frappeFetch<any[]>('/api/method/adadiko_hub.api.list_deliveries')
+    if (customRes.ok && Array.isArray(customRes.data)) {
+      return { ok: true, data: customRes.data.map(mapDeliveryNote) }
+    }
+
     const fields = encodeURIComponent(
       JSON.stringify([
         'name',
@@ -627,7 +681,7 @@ class FrappeSalesApi implements SalesApi {
       ])
     )
     const res = await frappeFetch<any[]>(
-      `/api/resource/Delivery%20Note?fields=${fields}&order_by=creation%20desc&limit_page_length=100`
+      `/api/resource/Delivery%20Note?fields=${fields}&order_by=posting_date%20desc,creation%20desc&limit_page_length=100`
     )
     if (!res.ok || !res.data) return { ok: false, error: res.error }
     return { ok: true, data: res.data.map(mapDeliveryNote) }
@@ -643,6 +697,11 @@ class FrappeSalesApi implements SalesApi {
   }
 
   async listSalesInvoices(): Promise<ApiResult<SalesInvoice[]>> {
+    const customRes = await frappeFetch<any[]>('/api/method/adadiko_hub.api.list_sales_invoices')
+    if (customRes.ok && Array.isArray(customRes.data)) {
+      return { ok: true, data: customRes.data.map(mapSalesInvoice) }
+    }
+
     const fields = encodeURIComponent(
       JSON.stringify([
         'name',
@@ -659,7 +718,7 @@ class FrappeSalesApi implements SalesApi {
       ])
     )
     const res = await frappeFetch<any[]>(
-      `/api/resource/Sales%20Invoice?fields=${fields}&order_by=creation%20desc&limit_page_length=100`
+      `/api/resource/Sales%20Invoice?fields=${fields}&order_by=posting_date%20desc,creation%20desc&limit_page_length=100`
     )
     if (!res.ok || !res.data) return { ok: false, error: res.error }
     return { ok: true, data: res.data.map(mapSalesInvoice) }
@@ -701,9 +760,34 @@ class FrappeSalesApi implements SalesApi {
   }
 
   async getSalesSummary(): Promise<ApiResult<SalesSummary>> {
-    const res = await frappeFetch<SalesSummary>('/api/method/adadiko_hub.api.get_sales_summary')
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.get_sales_summary')
     if (!res.ok || !res.data) return { ok: false, error: res.error }
-    return { ok: true, data: res.data }
+    if (res.data.currency) {
+      setAppCurrency(res.data.currency)
+    }
+    const summary: SalesSummary = {
+      salesToday: Number(res.data.sales_today ?? res.data.salesToday ?? 0),
+      salesThisMonth: Number(res.data.sales_month ?? res.data.salesThisMonth ?? 0),
+      salesMonthTarget: Number(res.data.sales_month_target ?? res.data.salesMonthTarget ?? 60000),
+      openOrdersCount: Number(res.data.open_orders_count ?? res.data.open_orders ?? 0),
+      openOrdersValue: Number(res.data.open_orders_value ?? 0),
+      unpaidInvoicesCount: Number(res.data.unpaid_invoices_count ?? 0),
+      unpaidInvoicesTotal: Number(res.data.unpaid_invoices_total ?? res.data.unpaid_invoices ?? 0),
+      pipelineCounts: {
+        quotations: Number(res.data.pipeline_counts?.quotations ?? 0),
+        orders: Number(res.data.pipeline_counts?.orders ?? 0),
+        delivered: Number(res.data.pipeline_counts?.delivered ?? 0),
+        invoiced: Number(res.data.pipeline_counts?.invoiced ?? 0),
+        paid: Number(res.data.pipeline_counts?.paid ?? 0),
+      },
+      recentOrdersOverTime: res.data.recent_orders_over_time || [],
+      teamPerformance: res.data.team_performance || [],
+      recentCompletedOrders: Array.isArray(res.data.recent_completed_orders)
+        ? res.data.recent_completed_orders.map(mapSalesOrder)
+        : [],
+      currency: res.data.currency || getAppCurrency(),
+    }
+    return { ok: true, data: summary }
   }
 
   async listApprovals(): Promise<ApiResult<ApprovalRequest[]>> {

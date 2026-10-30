@@ -48,6 +48,7 @@ export interface Organization {
   subscribedModules: ModuleKey[]
   createdDate: string
   status: 'active' | 'trial' | 'suspended'
+  currency?: string
 }
 
 // Result envelope returned by every service method
@@ -220,6 +221,8 @@ export interface SalesSummary {
     targetRevenue: number
     targetPct: number
   }[]
+  recentCompletedOrders?: SalesOrder[]
+  currency?: string
 }
 
 // Catalog Product for Marketplace & Pricing

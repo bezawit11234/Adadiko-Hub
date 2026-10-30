@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import type { User, Organization, Role, ModuleKey } from '@/types'
 import { ROLE_DEFINITIONS } from '@/data/roles'
 import { getAuthApi } from '@/services/auth'
+import { setAppCurrency } from '@/utils/format'
 
 const STORAGE_KEY_USER = 'adadiko_current_user'
 const STORAGE_KEY_ORG = 'adadiko_current_org'
@@ -79,6 +80,7 @@ export function useSession() {
 
   function setOrganization(org: Organization) {
     currentOrg.value = org
+    if (org.currency) setAppCurrency(org.currency)
     sessionStore()?.setItem(STORAGE_KEY_ORG, JSON.stringify(org))
   }
 
@@ -103,6 +105,7 @@ export function useSession() {
       if (res.ok && res.data) {
         setUser(res.data)
         currentOrg.value = loadStoredOrg()
+        if (currentOrg.value.currency) setAppCurrency(currentOrg.value.currency)
         isSessionChecked.value = true
         return res.data
       } else {
@@ -115,6 +118,7 @@ export function useSession() {
       if (res.ok && res.data) {
         setUser(res.data)
         currentOrg.value = loadStoredOrg()
+        if (currentOrg.value.currency) setAppCurrency(currentOrg.value.currency)
         isSessionChecked.value = true
         return res.data
       } else {
@@ -142,6 +146,7 @@ export function useSession() {
     if (res.ok && res.data) {
       setUser(res.data)
       currentOrg.value = loadStoredOrg()
+      if (currentOrg.value.currency) setAppCurrency(currentOrg.value.currency)
     }
     return res
   }

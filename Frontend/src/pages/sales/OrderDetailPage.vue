@@ -4,6 +4,7 @@ import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { getSalesApi } from '@/services/sales'
 import { getStoredSlug } from '@/services/frappeHttp'
 import { useToast } from '@/composables/useToast'
+import { useSession } from '@/composables/useSession'
 import type { SalesOrder } from '@/types'
 import AppButton from '@/components/common/AppButton.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
@@ -21,6 +22,8 @@ const router = useRouter()
 const orderId = computed(() => route.params.id as string)
 const salesApi = getSalesApi()
 const toast = useToast()
+const { currentRole } = useSession()
+const isCompanyAdmin = computed(() => currentRole.value === 'admin')
 
 const order = ref<SalesOrder | null>(null)
 const loading = ref(true)
@@ -192,13 +195,15 @@ async function handleRecordPayment() {
             </Badge>
 
             <a
+              v-if="isCompanyAdmin"
               :href="deskOrderUrl"
               target="_blank"
+              rel="noopener noreferrer"
               class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-stone-bg hover:bg-stone-muted border border-stone-border text-[11px] font-bold text-ink transition-colors"
               title="Open live Sales Order in ERPNext Desk"
             >
               <AppIcon name="external-link" :size="12" />
-              <span>ERPNext Desk</span>
+              <span>View in ERPNext Desk</span>
             </a>
           </div>
           <h1 class="text-2xl font-black text-ink font-heading">
@@ -228,6 +233,7 @@ async function handleRecordPayment() {
       <StepTracker
         :current-stage="order.stage"
         :is-completed="isOrderCompleted"
+        :has-quotation="Boolean(order.quotationId)"
       />
 
       <!-- PROMINENT NEXT STEP CALLOUT BANNER -->
@@ -292,22 +298,28 @@ async function handleRecordPayment() {
       <!-- COMPLETED & FULLY PAID BANNER -->
       <div
         v-else
-        class="bg-status-green-bg/60 border border-status-green/30 p-6 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-status-green"
+        class="bg-emerald-50/90 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700/60 p-6 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-soft transition-colors"
       >
         <div class="flex items-center gap-3.5">
-          <div class="w-10 h-10 rounded-2xl bg-status-green text-white flex items-center justify-center shrink-0">
+          <div class="w-10 h-10 rounded-2xl bg-status-green text-white flex items-center justify-center shrink-0 shadow-xs">
             <AppIcon name="check-circle" :size="22" />
           </div>
           <div>
-            <h4 class="text-base font-extrabold font-heading text-ink">Order Completed & Bill Paid!</h4>
-            <p class="text-xs text-ink-muted">All goods have been processed and full customer payment has been reconciled in ERPNext.</p>
+            <h4 class="text-base font-extrabold font-heading text-emerald-950 dark:text-emerald-50">
+              Order Completed & Bill Paid!
+            </h4>
+            <p class="text-xs text-emerald-900 dark:text-emerald-200 font-medium">
+              All goods have been processed and full customer payment has been reconciled in ERPNext.
+            </p>
           </div>
         </div>
 
         <a
+          v-if="isCompanyAdmin"
           :href="deskOrderUrl"
           target="_blank"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-stone-bg border border-stone-border text-xs font-bold text-ink shadow-2xs transition-colors shrink-0"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-[#111C2A] hover:bg-stone-bg dark:hover:bg-stone-muted border border-stone-border text-xs font-bold text-ink shadow-2xs transition-colors shrink-0"
         >
           <AppIcon name="external-link" :size="14" />
           <span>View in ERPNext Desk</span>
@@ -387,12 +399,13 @@ async function handleRecordPayment() {
               {{ order.deliveryNoteId }}
             </p>
             <a
-              v-if="deskDeliveryUrl"
+              v-if="deskDeliveryUrl && isCompanyAdmin"
               :href="deskDeliveryUrl"
               target="_blank"
+              rel="noopener noreferrer"
               class="text-xs text-signal hover:underline font-semibold flex items-center gap-1"
             >
-              <span>View in ERPNext</span>
+              <span>View in ERPNext Desk</span>
               <AppIcon name="external-link" :size="12" />
             </a>
           </div>
@@ -418,12 +431,13 @@ async function handleRecordPayment() {
               {{ order.invoiceId }}
             </RouterLink>
             <a
-              v-if="deskInvoiceUrl"
+              v-if="deskInvoiceUrl && isCompanyAdmin"
               :href="deskInvoiceUrl"
               target="_blank"
+              rel="noopener noreferrer"
               class="text-xs text-signal hover:underline font-semibold flex items-center gap-1"
             >
-              <span>View in ERPNext</span>
+              <span>View in ERPNext Desk</span>
               <AppIcon name="external-link" :size="12" />
             </a>
           </div>

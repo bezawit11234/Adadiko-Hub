@@ -401,7 +401,7 @@ async function handleSubmitQuotation() {
               <!-- Rate (col-span-2) -->
               <div class="sm:col-span-2">
                 <label class="block text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-1">
-                  Unit Rate ($)
+                  Unit Rate
                 </label>
                 <TextField v-model="row.rate" type="number" tabular min="0" step="0.01" />
               </div>

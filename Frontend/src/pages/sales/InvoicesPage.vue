@@ -72,14 +72,20 @@ const filteredInvoices = computed(() => {
   }
 
   if (activeFilter.value === 'unpaid') {
-    list = list.filter((i) => i.status === 'Unpaid')
+    list = list.filter((i) => i.status === 'Unpaid' || i.status === 'Partially Paid' || (i.outstandingAmount > 0 && i.status !== 'Overdue'))
   } else if (activeFilter.value === 'overdue') {
     list = list.filter((i) => i.status === 'Overdue')
   } else if (activeFilter.value === 'paid') {
-    list = list.filter((i) => i.status === 'Paid')
+    list = list.filter((i) => i.status === 'Paid' || i.outstandingAmount <= 0)
   }
 
-  return list
+  // Always sort newest first (postingDate desc, then id desc)
+  return list.slice().sort((a, b) => {
+    const dateA = a.postingDate || ''
+    const dateB = b.postingDate || ''
+    if (dateA !== dateB) return dateB.localeCompare(dateA)
+    return b.id.localeCompare(a.id)
+  })
 })
 
 const totalOwedAll = computed(() => {
@@ -245,14 +251,14 @@ function onRowClick(row: SalesInvoice) {
         <span class="text-xs text-ink-muted">{{ formatDate(value) }}</span>
       </template>
 
-      <template #status="{ value }">
+      <template #status="{ row, value }">
         <!-- Badges: Paid, Unpaid, Overdue -->
         <Badge
-          :variant="value === 'Paid' ? 'success' : value === 'Overdue' ? 'danger' : 'warning'"
+          :variant="(row.outstandingAmount <= 0 || value === 'Paid') ? 'success' : value === 'Overdue' ? 'danger' : 'warning'"
           size="sm"
           dot
         >
-          {{ value }}
+          {{ row.outstandingAmount <= 0 ? 'Paid' : value }}
         </Badge>
       </template>
 
@@ -303,7 +309,7 @@ function onRowClick(row: SalesInvoice) {
           </span>
         </div>
 
-        <Field label="Payment Amount ($)" required>
+        <Field label="Payment Amount" required>
           <TextField v-model="payAmount" type="number" tabular />
         </Field>
 

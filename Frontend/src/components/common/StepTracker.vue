@@ -8,10 +8,12 @@ const props = withDefaults(
     currentStage: OrderStage
     steps?: OrderStage[]
     isCompleted?: boolean
+    hasQuotation?: boolean
   }>(),
   {
     steps: () => ['Quotation', 'Sales Order', 'Delivery', 'Invoice', 'Payment'],
     isCompleted: false,
+    hasQuotation: false,
   }
 )
 
@@ -21,10 +23,18 @@ const currentIndex = computed(() => {
   return idx >= 0 ? idx : 0
 })
 
-function getStepState(idx: number): 'completed' | 'current' | 'upcoming' {
+function getStepState(idx: number): 'completed' | 'current' | 'upcoming' | 'skipped' {
+  if (idx === 0 && !props.hasQuotation) return 'skipped'
   if (props.isCompleted || idx < currentIndex.value) return 'completed'
   if (idx === currentIndex.value) return 'current'
   return 'upcoming'
+}
+
+function getStepLabel(step: string, idx: number): string {
+  if (idx === 0 && !props.hasQuotation) {
+    return 'No quotation (order created directly)'
+  }
+  return step
 }
 </script>
 
@@ -41,14 +51,27 @@ function getStepState(idx: number): 'completed' | 'current' | 'upcoming' {
           v-if="idx > 0"
           :class="[
             'absolute top-4 -left-1/2 w-full h-[2px] -z-0 transition-colors duration-300',
-            idx <= currentIndex ? 'bg-signal' : 'bg-stone-border',
+            idx === 1 && !hasQuotation
+              ? 'bg-stone-border'
+              : idx <= currentIndex
+              ? 'bg-signal'
+              : 'bg-stone-border',
           ]"
         />
 
         <!-- Step Circle Indicator -->
         <div class="relative z-10 flex items-center justify-center">
+          <!-- Step 0 with no quotation: grey circle with dash -->
           <div
-            v-if="getStepState(idx) === 'completed'"
+            v-if="getStepState(idx) === 'skipped'"
+            class="w-8 h-8 rounded-full bg-stone-bg text-ink-muted border border-stone-border flex items-center justify-center text-xs font-bold"
+            title="No quotation (order created directly)"
+          >
+            <span>—</span>
+          </div>
+
+          <div
+            v-else-if="getStepState(idx) === 'completed'"
             class="w-8 h-8 rounded-full bg-status-green text-white flex items-center justify-center shadow-xs transition-transform duration-200"
             :title="`${step}: Completed`"
           >
@@ -75,15 +98,17 @@ function getStepState(idx: number): 'completed' | 'current' | 'upcoming' {
         <!-- Step Label -->
         <span
           :class="[
-            'mt-2 text-xs font-medium tracking-tight',
-            getStepState(idx) === 'current'
+            'mt-2 text-xs font-medium tracking-tight px-1',
+            getStepState(idx) === 'skipped'
+              ? 'text-ink-muted italic'
+              : getStepState(idx) === 'current'
               ? 'text-signal font-bold'
               : getStepState(idx) === 'completed'
               ? 'text-ink font-semibold'
               : 'text-ink-muted',
           ]"
         >
-          {{ step }}
+          {{ getStepLabel(step, idx) }}
         </span>
       </div>
     </div>

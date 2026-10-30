@@ -223,7 +223,7 @@ async function handleRecordPayment() {
       @close="isPaymentModalOpen = false"
     >
       <div v-if="invoice" class="space-y-4 text-xs">
-        <Field label="Amount to Pay ($)" required>
+        <Field label="Amount to Pay" required>
           <TextField v-model="payAmount" type="number" tabular />
         </Field>
 
