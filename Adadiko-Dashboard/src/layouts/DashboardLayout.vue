@@ -142,8 +142,8 @@ const handleGlobalSearch = () => {
 
         <!-- Bottom Section: Role Switcher & Logout -->
         <div class="pt-5 border-t border-ink-muted/30 space-y-3.5">
-          <!-- Role Switcher Pill Container -->
-          <div class="bg-ink-deep/50 rounded-xl p-2 border border-ink-deep">
+          <!-- Role Switcher Pill Container (Demo Only) -->
+          <div v-if="apiMode !== 'frappe'" class="bg-ink-deep/50 rounded-xl p-2 border border-ink-deep">
             <div class="text-[10px] font-mono text-stone-bg/60 uppercase tracking-wider px-1 mb-1 flex items-center justify-between">
               <span>Demo Profile</span>
               <span class="text-signal font-bold">{{ currentRole.toUpperCase() }}</span>
@@ -298,7 +298,7 @@ const handleGlobalSearch = () => {
         <!-- Elegant Sub-footer -->
         <footer class="px-6 py-3 border-t border-stone-border text-[11px] text-ink-muted flex items-center justify-between bg-stone-bg">
           <span class="font-mono">Adadiko Dashboard &bull; Staff Back Office</span>
-          <span class="font-mono">Connected Site: development.localhost</span>
+          <span class="font-mono">Connected Site: control.localhost</span>
         </footer>
       </div>
 

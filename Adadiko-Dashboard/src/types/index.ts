@@ -127,6 +127,7 @@ export interface StaffUser {
   isDemo: boolean
   lastActive?: string
   createdDate?: string
+  temp_password?: string
 }
 
 export interface RoleMeta {

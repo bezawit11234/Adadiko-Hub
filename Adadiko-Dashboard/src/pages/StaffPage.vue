@@ -22,6 +22,9 @@ const loading = ref(true)
 
 // Invite modal
 const showInviteModal = ref(false)
+const showTempPasswordModal = ref(false)
+const createdTempPassword = ref('')
+const createdStaffEmail = ref('')
 const inviteName = ref('')
 const inviteEmail = ref('')
 const inviteRole = ref<StaffRole>('support')
@@ -75,6 +78,11 @@ const handleInviteStaff = async () => {
         type: 'success',
       })
       showInviteModal.value = false
+      if (res.data.temp_password) {
+        createdStaffEmail.value = res.data.email
+        createdTempPassword.value = res.data.temp_password
+        showTempPasswordModal.value = true
+      }
       inviteName.value = ''
       inviteEmail.value = ''
       await fetchStaff()
@@ -152,6 +160,16 @@ const handleInviteStaff = async () => {
             </tr>
           </tbody>
         </table>
+
+        <!-- Loading Skeleton -->
+        <div v-if="loading" class="p-4 space-y-3">
+          <div v-for="i in 3" :key="i" class="h-10 bg-stone-muted/40 rounded-xl animate-pulse"></div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="staffList.length === 0" class="p-8 text-center text-xs text-ink-muted">
+          No staff accounts found.
+        </div>
       </div>
     </div>
 
@@ -221,6 +239,30 @@ const handleInviteStaff = async () => {
         </AppButton>
         <AppButton variant="primary" size="sm" @click="handleInviteStaff" :loading="isInviting">
           Send Staff Invitation
+        </AppButton>
+      </template>
+    </Modal>
+
+    <!-- Temporary Password Modal (Shown once on invite) -->
+    <Modal
+      :show="showTempPasswordModal"
+      title="Staff Account Created"
+      @close="showTempPasswordModal = false"
+    >
+      <div class="text-xs text-ink space-y-3">
+        <p>
+          Staff member account for <strong>{{ createdStaffEmail }}</strong> was successfully generated.
+        </p>
+        <p class="text-ink-muted">
+          Provide this single-use temporary password to the staff member. It will not be displayed again:
+        </p>
+        <div class="p-3 bg-stone-muted/70 rounded-xl font-mono text-sm font-bold text-signal select-all border border-stone-border flex items-center justify-between">
+          <span>{{ createdTempPassword }}</span>
+        </div>
+      </div>
+      <template #footer>
+        <AppButton variant="primary" size="sm" @click="showTempPasswordModal = false">
+          Done
         </AppButton>
       </template>
     </Modal>

@@ -6,7 +6,7 @@
 
 import type { StaffUser, StaffRole, ApiResult } from '@/types'
 import { DEMO_STAFF } from '@/data/roles'
-import { frappeRequest } from './frappeHttp'
+import { frappeRequest, setCsrfToken } from './frappeHttp'
 
 const SESSION_STORAGE_KEY = 'adadiko_staff_session'
 
@@ -91,13 +91,38 @@ export class MockAuthApi implements AuthApi {
 
 export class FrappeAuthApi implements AuthApi {
   getCurrentUser(): StaffUser | null {
-    // In Frappe mode, session is stored in cookies and validated via get_session
+    // In Frappe mode, session is stored in sessionStorage and validated via staff_session
     try {
       const stored = sessionStorage.getItem(SESSION_STORAGE_KEY)
       return stored ? JSON.parse(stored) : null
     } catch {
       return null
     }
+  }
+
+  async restoreSession(): Promise<StaffUser | null> {
+    try {
+      const session = await frappeRequest<any>('/api/method/adadiko_hub.admin_api.staff_session')
+      if (session && session.user) {
+        if (session.csrf_token) {
+          setCsrfToken(session.csrf_token)
+        }
+        const staffUser: StaffUser = {
+          id: session.user,
+          email: session.email || session.user,
+          name: session.name || session.user,
+          role: session.role || 'support',
+          isDemo: false,
+          lastActive: 'Just now',
+        }
+        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(staffUser))
+        return staffUser
+      }
+    } catch {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY)
+      setCsrfToken(null)
+    }
+    return null
   }
 
   async login(usr: string, pwd?: string): Promise<ApiResult<StaffUser>> {
@@ -108,22 +133,16 @@ export class FrappeAuthApi implements AuthApi {
       })
 
       // Fetch user profile and control site roles
-      const session = await frappeRequest<any>('/api/method/adadiko_hub.api.get_session')
-      const roles: string[] = session.roles || []
-      
-      // Determine staff role:
-      let staffRole: StaffRole = 'support'
-      if (roles.includes('System Manager') || roles.includes('Administrator') || roles.includes('Adadiko Admin')) {
-        staffRole = 'admin'
-      } else if (roles.includes('Accounts Manager') || roles.includes('Adadiko Billing')) {
-        staffRole = 'billing'
+      const session = await frappeRequest<any>('/api/method/adadiko_hub.admin_api.staff_session')
+      if (session.csrf_token) {
+        setCsrfToken(session.csrf_token)
       }
 
       const staffUser: StaffUser = {
         id: session.user,
-        email: session.user,
-        name: session.full_name || session.user,
-        role: staffRole,
+        email: session.email || session.user,
+        name: session.name || session.user,
+        role: session.role || 'support',
         isDemo: false,
         lastActive: 'Just now',
       }
@@ -148,6 +167,7 @@ export class FrappeAuthApi implements AuthApi {
       // ignore
     }
     sessionStorage.removeItem(SESSION_STORAGE_KEY)
+    setCsrfToken(null)
   }
 }
 

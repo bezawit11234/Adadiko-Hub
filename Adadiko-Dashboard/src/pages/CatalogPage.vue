@@ -89,8 +89,13 @@ const handleSavePrice = async () => {
       </template>
     </SectionHeading>
 
+    <!-- Loading Skeleton -->
+    <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-for="i in 3" :key="i" class="h-56 bg-stone-muted/40 rounded-2xl animate-pulse"></div>
+    </div>
+
     <!-- Modules Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div
         v-for="mod in modules"
         :key="mod.key"

@@ -14,6 +14,28 @@ function getCookie(name: string): string | null {
   return null
 }
 
+let memoryCsrfToken: string | null = null
+
+export function setCsrfToken(token: string | null) {
+  memoryCsrfToken = token
+  if (typeof window !== 'undefined') {
+    if (token) {
+      sessionStorage.setItem('adadiko_csrf_token', token)
+    } else {
+      sessionStorage.removeItem('adadiko_csrf_token')
+    }
+  }
+}
+
+export function getCsrfToken(): string | null {
+  if (memoryCsrfToken) return memoryCsrfToken
+  if (typeof window !== 'undefined') {
+    const stored = sessionStorage.getItem('adadiko_csrf_token')
+    if (stored) return stored
+  }
+  return getCookie('csrf_token')
+}
+
 export interface FrappeResponse<T = any> {
   message?: T
   exc?: string
@@ -45,7 +67,7 @@ export async function frappeRequest<T = any>(
   // Set CSRF token for mutating requests if available
   const method = (options.method || 'GET').toUpperCase()
   if (method !== 'GET' && method !== 'HEAD') {
-    const csrfToken = getCookie('csrf_token')
+    const csrfToken = getCsrfToken()
     if (csrfToken && !headers.has('X-Frappe-CSRF-Token')) {
       headers.set('X-Frappe-CSRF-Token', csrfToken)
     }

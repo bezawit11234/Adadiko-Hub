@@ -236,6 +236,11 @@ const handleRenewSubscription = async () => {
             </tr>
           </tbody>
         </table>
+
+        <!-- Loading Skeleton -->
+        <div v-if="loading" class="p-6 space-y-3">
+          <div v-for="i in 4" :key="i" class="h-10 bg-stone-muted/40 rounded-xl animate-pulse"></div>
+        </div>
       </div>
 
       <EmptyState

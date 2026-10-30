@@ -9,12 +9,24 @@ import { ROLE_DEFINITIONS } from '@/data/roles'
 
 const authApi = getAuthApi()
 const currentUser = ref<StaffUser | null>(authApi.getCurrentUser())
-const apiMode = ref<'mock' | 'frappe'>('mock')
+const envDefaultMode = (import.meta.env.VITE_API_MODE as string) || 'mock'
+const apiMode = ref<'mock' | 'frappe'>(envDefaultMode === 'frappe' ? 'frappe' : 'mock')
 
 export function useSession() {
   const isAuthenticated = computed(() => !!currentUser.value)
   const currentRole = computed<StaffRole>(() => currentUser.value?.role || 'admin')
   const currentRoleMeta = computed(() => ROLE_DEFINITIONS[currentRole.value])
+
+  const restoreSession = async () => {
+    if ('restoreSession' in authApi && typeof (authApi as any).restoreSession === 'function') {
+      const user = await (authApi as any).restoreSession()
+      if (user) {
+        currentUser.value = user
+      } else {
+        currentUser.value = null
+      }
+    }
+  }
 
   const switchRole = (role: StaffRole) => {
     const updated = authApi.switchRole(role)
@@ -56,5 +68,6 @@ export function useSession() {
     loginAsDemo,
     login,
     logout,
+    restoreSession,
   }
 }

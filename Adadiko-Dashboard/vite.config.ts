@@ -24,7 +24,7 @@ export default defineConfig({
       // Forward /api requests to Frappe ERPNext control site
       '/api': {
         target: 'http://127.0.0.1:8000',
-        headers: { 'X-Frappe-Site-Name': 'development.localhost' },
+        headers: { 'X-Frappe-Site-Name': 'control.localhost' },
       },
     },
   },

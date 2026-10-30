@@ -12,7 +12,7 @@ import Badge from '@/components/common/Badge.vue'
 
 const router = useRouter()
 const route = useRoute()
-const { login, loginAsDemo } = useSession()
+const { login, loginAsDemo, apiMode } = useSession()
 const { showToast } = useToast()
 
 const email = ref('')
@@ -83,8 +83,8 @@ const handleQuickDemo = async (role: StaffRole) => {
       </AppButton>
     </form>
 
-    <!-- Quick Demo Accounts -->
-    <div class="pt-4 border-t border-stone-border">
+    <!-- Quick Demo Accounts (Hidden in real Frappe mode) -->
+    <div v-if="apiMode !== 'frappe'" class="pt-4 border-t border-stone-border">
       <p class="text-xs font-semibold text-ink-muted uppercase tracking-wider mb-3">
         1-Click Demo Profiles:
       </p>

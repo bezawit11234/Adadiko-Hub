@@ -13,20 +13,25 @@ const adminApi = getAdminApi()
 
 const overview = ref<AdminOverview | null>(null)
 const clients = ref<ClientCompany[]>([])
+const ordersCount = ref<number>(0)
 const loading = ref(true)
 
 const fetchDashboardData = async () => {
   loading.value = true
   try {
-    const [ovRes, cliRes] = await Promise.all([
+    const [ovRes, cliRes, ordRes] = await Promise.all([
       adminApi.getOverview(),
       adminApi.listClients(),
+      adminApi.listOrders(),
     ])
     if (ovRes.ok && ovRes.data) {
       overview.value = ovRes.data
     }
     if (cliRes.ok && cliRes.data) {
       clients.value = cliRes.data
+    }
+    if (ordRes.ok && ordRes.data) {
+      ordersCount.value = ordRes.data.length
     }
   } finally {
     loading.value = false
@@ -89,7 +94,7 @@ const navigateToClient = (clientId: string) => {
       <!-- Card 2: Orders -->
       <StatCard
         label="Orders"
-        value="6"
+        :value="formatNumber(ordersCount)"
         icon="orders"
         variant="info"
       />
@@ -206,25 +211,26 @@ const navigateToClient = (clientId: string) => {
 
           <!-- Donut Legend with Frontend Tokens -->
           <div class="space-y-2 text-xs">
-            <div class="flex items-center gap-2">
-              <span class="w-3.5 h-3.5 rounded-md bg-ink shrink-0"></span>
+            <div
+              v-for="planItem in (overview?.clientsByPlan || [])"
+              :key="planItem.plan"
+              class="flex items-center gap-2"
+            >
+              <span
+                class="w-3.5 h-3.5 rounded-md shrink-0"
+                :class="
+                  planItem.plan === 'enterprise'
+                    ? 'bg-ink'
+                    : planItem.plan === 'growth'
+                    ? 'bg-ink-muted'
+                    : 'bg-signal'
+                "
+              ></span>
               <div>
-                <div class="font-medium text-ink">Growth Plan</div>
-                <div class="text-[10px] text-ink-muted font-mono">3 tenants (50%)</div>
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="w-3.5 h-3.5 rounded-md bg-ink-muted shrink-0"></span>
-              <div>
-                <div class="font-medium text-ink">Enterprise</div>
-                <div class="text-[10px] text-ink-muted font-mono">2 tenants (33%)</div>
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="w-3.5 h-3.5 rounded-md bg-signal shrink-0"></span>
-              <div>
-                <div class="font-medium text-ink">Starter Tier</div>
-                <div class="text-[10px] text-ink-muted font-mono">1 tenant (17%)</div>
+                <div class="font-medium text-ink capitalize">{{ planItem.plan }} Plan</div>
+                <div class="text-[10px] text-ink-muted font-mono">
+                  {{ planItem.count }} tenant{{ planItem.count === 1 ? '' : 's' }} ({{ planItem.percentage }}%)
+                </div>
               </div>
             </div>
           </div>
@@ -232,7 +238,7 @@ const navigateToClient = (clientId: string) => {
 
         <div class="pt-3 border-t border-stone-border/60 text-[11px] text-ink-light flex items-center justify-between">
           <span>MRR Velocity</span>
-          <span class="font-bold text-ink font-mono">$1,616 / mo</span>
+          <span class="font-bold text-ink font-mono">{{ formatCurrency(overview?.mrr || 0) }} / mo</span>
         </div>
       </div>
 
