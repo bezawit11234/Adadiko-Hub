@@ -4,7 +4,7 @@ import { getAdminApi } from '@/services/admin'
 import { useAccess } from '@/composables/useAccess'
 import { useToast } from '@/composables/useToast'
 import type { ModuleItem } from '@/types'
-import { formatCurrency } from '@/utils/format'
+import { formatCurrency, DASHBOARD_CURRENCY } from '@/utils/format'
 import PageContainer from '@/components/common/PageContainer.vue'
 import SectionHeading from '@/components/common/SectionHeading.vue'
 import AppButton from '@/components/common/AppButton.vue'
@@ -62,7 +62,7 @@ const handleSavePrice = async () => {
     if (res.ok && res.data) {
       showToast({
         title: 'Catalog Price Updated',
-        message: `${res.data.name} price updated to $${res.data.monthlyPrice}/mo, $${res.data.yearlyPrice}/yr.`,
+        message: `${res.data.name} price updated to ${formatCurrency(res.data.monthlyPrice)}/mo, ${formatCurrency(res.data.yearlyPrice)}/yr.`,
         type: 'success',
       })
       showPriceModal.value = false
@@ -164,14 +164,14 @@ const handleSavePrice = async () => {
         <div class="grid grid-cols-2 gap-4">
           <TextField
             id="monthly-price"
-            label="Monthly Price ($ USD)"
+            :label="`Monthly Price (${DASHBOARD_CURRENCY})`"
             type="number"
             v-model.number="editMonthlyPrice"
             placeholder="35"
           />
           <TextField
             id="yearly-price"
-            label="Yearly Price ($ USD)"
+            :label="`Yearly Price (${DASHBOARD_CURRENCY})`"
             type="number"
             v-model.number="editYearlyPrice"
             placeholder="350"

@@ -388,7 +388,7 @@ const openWorkspaceSite = () => {
           <label class="block font-medium text-ink mb-1.5">Select Subscription Tier</label>
           <div class="grid grid-cols-3 gap-2">
             <button
-              v-for="p in (['starter', 'growth', 'enterprise'] as Plan[])"
+              v-for="p in (['sales', 'sales_+_inventory', 'full'] as Plan[])"
               :key="p"
               type="button"
               @click="handlePlanSelectionChange(p)"
@@ -399,8 +399,8 @@ const openWorkspaceSite = () => {
                   : 'border-stone-border bg-stone-subtle text-ink-muted hover:border-stone-border hover:bg-stone-muted'
               "
             >
-              <div class="capitalize text-xs font-bold">{{ p }}</div>
-              <div class="font-mono text-[11px] mt-1">${{ PLAN_DEFINITIONS[p]?.baseMonthlyPrice }}/mo</div>
+              <div class="capitalize text-xs font-bold">{{ PLAN_DEFINITIONS[p]?.name || p }}</div>
+              <div class="font-mono text-[11px] mt-1">{{ formatCurrency(PLAN_DEFINITIONS[p]?.baseMonthlyPrice || 0) }}/mo</div>
             </button>
           </div>
         </div>
@@ -429,7 +429,7 @@ const openWorkspaceSite = () => {
                 </div>
               </div>
               <span class="font-mono text-ink-muted">
-                {{ PLAN_DEFINITIONS[selectedPlan]?.includedModules.includes(mod.key) ? 'Included' : `+$${mod.monthlyPrice}/mo` }}
+                {{ PLAN_DEFINITIONS[selectedPlan]?.includedModules.includes(mod.key) ? 'Included' : `+${formatCurrency(mod.monthlyPrice)}/mo` }}
               </span>
             </div>
           </div>

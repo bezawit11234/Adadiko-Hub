@@ -193,7 +193,7 @@ const navigateToClient = (clientId: string) => {
       <!-- Card 3: Monthly Run Rate -->
       <StatCard
         label="Monthly Run Rate"
-        :value="overview ? formatCurrency(overview.mrr) : '$0'"
+        :value="overview ? formatCurrency(overview.mrr) : formatCurrency(0)"
         icon="trending-up"
         variant="success"
       />
@@ -337,8 +337,8 @@ const navigateToClient = (clientId: string) => {
             </div>
 
             <!-- Value -->
-            <span class="w-16 text-right font-mono text-[11px] font-bold text-ink-muted group-hover:text-ink">
-              ${{ client.monthlySpend || 0 }}
+            <span class="w-20 text-right font-mono text-[11px] font-bold text-ink-muted group-hover:text-ink">
+              {{ formatCurrency(client.monthlySpend || 0) }}
             </span>
           </div>
 
@@ -350,7 +350,7 @@ const navigateToClient = (clientId: string) => {
         <div class="pt-3 border-t border-stone-border/60 text-[11px] text-ink-light flex items-center justify-between">
           <span>Top Client:</span>
           <span class="font-bold text-ink font-mono">
-            {{ topClientsBySpend[0]?.name || 'None' }} (${{ topClientsBySpend[0]?.monthlySpend || 0 }})
+            {{ topClientsBySpend[0]?.name || 'None' }} ({{ formatCurrency(topClientsBySpend[0]?.monthlySpend || 0) }})
           </span>
         </div>
       </div>
