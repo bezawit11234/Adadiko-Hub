@@ -42,7 +42,44 @@ const fetchClients = async () => {
 }
 
 onMounted(() => {
+  // Always default to 'all' status on visit
+  selectedStatus.value = 'all'
   fetchClients()
+})
+
+const clearFilters = () => {
+  selectedStatus.value = 'all'
+  searchQuery.value = ''
+  if (route.query.q) {
+    router.replace({ query: {} })
+  }
+}
+
+const emptyStateTitle = computed(() => {
+  if (selectedStatus.value !== 'all' && searchQuery.value) {
+    return `No ${selectedStatus.value} organizations matching "${searchQuery.value}"`
+  }
+  if (selectedStatus.value !== 'all') {
+    return `No ${selectedStatus.value} tenant organizations found`
+  }
+  if (searchQuery.value) {
+    return `No organizations matching "${searchQuery.value}"`
+  }
+  return 'No tenant organizations found'
+})
+
+const emptyStateDescription = computed(() => {
+  const parts: string[] = []
+  if (selectedStatus.value !== 'all') {
+    parts.push(`Filter: ${selectedStatus.value.toUpperCase()}`)
+  }
+  if (searchQuery.value) {
+    parts.push(`Search: "${searchQuery.value}"`)
+  }
+  if (parts.length > 0) {
+    return `Active filters (${parts.join(' | ')}). Reset with Clear Filters or choose another status.`
+  }
+  return 'No client company records currently exist on the control site.'
 })
 
 const filteredClients = computed(() => {
@@ -71,15 +108,18 @@ const getStatusBadge = (status: ClientCompany['status']) => {
   }
 }
 
-const getPlanBadge = (plan: ClientCompany['plan']) => {
-  switch (plan) {
-    case 'enterprise':
-      return { variant: 'accent' as const, label: 'Enterprise' }
-    case 'growth':
-      return { variant: 'info' as const, label: 'Growth' }
-    case 'starter':
-      return { variant: 'neutral' as const, label: 'Starter' }
+const getPlanBadge = (plan: string) => {
+  const p = (plan || '').toLowerCase()
+  if (p === 'full' || p === 'enterprise') {
+    return { variant: 'accent' as const, label: 'Full' }
   }
+  if (p.includes('inventory') || p === 'growth') {
+    return { variant: 'info' as const, label: 'Sales + Inventory' }
+  }
+  if (p === 'sales' || p === 'starter') {
+    return { variant: 'neutral' as const, label: 'Sales' }
+  }
+  return { variant: 'neutral' as const, label: plan }
 }
 
 const openClient = (id: string) => {
@@ -253,15 +293,15 @@ const openClient = (id: string) => {
       <!-- Empty State -->
       <EmptyState
         v-if="filteredClients.length === 0 && !loading"
-        title="No tenant organizations found"
-        description="Try adjusting your status filter or search query to find the client company."
+        :title="emptyStateTitle"
+        :description="emptyStateDescription"
         icon="building"
       >
         <template #action>
           <AppButton
             variant="secondary"
             size="sm"
-            @click="selectedStatus = 'all'; searchQuery = ''"
+            @click="clearFilters"
           >
             Clear Filters
           </AppButton>

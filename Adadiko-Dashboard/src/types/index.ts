@@ -14,7 +14,7 @@ export interface ApiResult<T> {
 }
 
 // Plan tiers for client companies
-export type Plan = 'starter' | 'growth' | 'enterprise'
+export type Plan = 'sales' | 'sales_+_inventory' | 'full' | 'starter' | 'growth' | 'enterprise' | string
 
 export interface PlanDefinition {
   key: Plan

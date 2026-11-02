@@ -2,17 +2,27 @@
  * Formatting helpers for numbers, currency, dates, and badges
  */
 
-export function formatCurrency(amount: number, currency = 'USD'): string {
+// Global Dashboard Currency Setting: 'USD' or 'ETB'
+export type DashboardCurrency = 'USD' | 'ETB'
+export const DASHBOARD_CURRENCY: DashboardCurrency = 'USD'
+
+export function formatCurrency(amount: number, currency: DashboardCurrency = DASHBOARD_CURRENCY): string {
+  if (currency === 'ETB') {
+    return `ETB ${new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount || 0)}`
+  }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency,
+    currency: 'USD',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(amount)
+  }).format(amount || 0)
 }
 
 export function formatNumber(val: number): string {
-  return new Intl.NumberFormat('en-US').format(val)
+  return new Intl.NumberFormat('en-US').format(val || 0)
 }
 
 export function formatDate(dateString: string): string {
