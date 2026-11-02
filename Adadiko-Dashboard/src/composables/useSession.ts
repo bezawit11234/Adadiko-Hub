@@ -9,8 +9,6 @@ import { ROLE_DEFINITIONS } from '@/data/roles'
 
 const authApi = getAuthApi()
 const currentUser = ref<StaffUser | null>(authApi.getCurrentUser())
-const envDefaultMode = (import.meta.env.VITE_API_MODE as string) || 'mock'
-const apiMode = ref<'mock' | 'frappe'>(envDefaultMode === 'frappe' ? 'frappe' : 'mock')
 
 export function useSession() {
   const isAuthenticated = computed(() => !!currentUser.value)
@@ -26,22 +24,6 @@ export function useSession() {
         currentUser.value = null
       }
     }
-  }
-
-  const switchRole = (role: StaffRole) => {
-    const updated = authApi.switchRole(role)
-    currentUser.value = { ...updated }
-  }
-
-  const setApiMode = (mode: 'mock' | 'frappe') => {
-    apiMode.value = mode
-    if (typeof window !== 'undefined') {
-      ;(window as any).__ADADIKO_API_MODE = mode
-    }
-  }
-
-  const loginAsDemo = async (role: StaffRole) => {
-    switchRole(role)
   }
 
   const login = async (email: string, password?: string) => {
@@ -62,10 +44,6 @@ export function useSession() {
     isAuthenticated,
     currentRole,
     currentRoleMeta,
-    apiMode,
-    switchRole,
-    setApiMode,
-    loginAsDemo,
     login,
     logout,
     restoreSession,

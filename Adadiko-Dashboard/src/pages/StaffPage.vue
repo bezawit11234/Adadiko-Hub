@@ -123,7 +123,7 @@ const handleInviteStaff = async () => {
               <th class="py-3.5 px-4 font-semibold">Staff Member</th>
               <th class="py-3.5 px-4 font-semibold">Assigned Role</th>
               <th class="py-3.5 px-4 font-semibold">Last Active</th>
-              <th class="py-3.5 px-4 font-semibold">Account Class</th>
+              <th class="py-3.5 px-4 font-semibold">Status</th>
               <th class="py-3.5 px-4 font-semibold text-right">Joined Date</th>
             </tr>
           </thead>
@@ -149,8 +149,8 @@ const handleInviteStaff = async () => {
               </td>
 
               <td class="py-3.5 px-4">
-                <Badge :variant="staff.isDemo ? 'warning' : 'neutral'">
-                  {{ staff.isDemo ? 'Demo Profile' : 'Production Staff' }}
+                <Badge variant="success">
+                  Active
                 </Badge>
               </td>
 

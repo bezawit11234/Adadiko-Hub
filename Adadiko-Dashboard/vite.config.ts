@@ -21,7 +21,7 @@ export default defineConfig({
     port: 5174,
     host: true,
     proxy: {
-      // Forward /api requests to Frappe ERPNext control site
+      // Forward /api requests to Adadiko Hub control site
       '/api': {
         target: 'http://127.0.0.1:8000',
         headers: { 'X-Frappe-Site-Name': 'control.localhost' },

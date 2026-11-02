@@ -6,12 +6,7 @@ import AppButton from '@/components/common/AppButton.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 
 const router = useRouter()
-const { currentRole, currentRoleMeta, switchRole } = useSession()
-
-const handleSwitchToAdmin = () => {
-  switchRole('admin')
-  router.push('/overview')
-}
+const { currentRoleMeta } = useSession()
 </script>
 
 <template>
@@ -26,10 +21,10 @@ const handleSwitchToAdmin = () => {
       </h1>
 
       <p class="text-xs text-ink-muted leading-relaxed mb-6">
-        Your current staff profile (<strong>{{ currentRoleMeta.label }}</strong>) is not authorized to access this administration section.
+        Your current staff account (<strong>{{ currentRoleMeta?.label || 'Staff' }}</strong>) is not authorized to access this administration section.
       </p>
 
-      <div class="p-4 rounded-2xl bg-stone-surface border border-stone-border mb-6 text-left text-xs">
+      <div v-if="currentRoleMeta" class="p-4 rounded-2xl bg-stone-surface border border-stone-border mb-6 text-left text-xs">
         <div class="font-semibold text-ink mb-1">Permitted routes for {{ currentRoleMeta.label }}:</div>
         <ul class="list-disc list-inside text-ink-muted space-y-1 font-mono text-[11px]">
           <li v-for="r in currentRoleMeta.allowedRoutes" :key="r">{{ r }}</li>
@@ -37,11 +32,8 @@ const handleSwitchToAdmin = () => {
       </div>
 
       <div class="flex items-center justify-center gap-3">
-        <AppButton variant="secondary" size="sm" @click="router.push('/overview')">
+        <AppButton variant="primary" size="sm" @click="router.push('/overview')">
           Return to Overview
-        </AppButton>
-        <AppButton variant="primary" size="sm" @click="handleSwitchToAdmin">
-          Switch to Admin (Demo)
         </AppButton>
       </div>
     </div>

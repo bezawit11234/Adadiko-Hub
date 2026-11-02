@@ -8,148 +8,117 @@
 +-------------------------------------------------------------------------+
 |                           Adadiko Dashboard                             |
 |              (Internal Back Office for Adadiko Staff)                   |
-|                   Port: 5174 | VITE_API_MODE=mock|frappe               |
+|                              Port: 5174                                 |
 +------------------------------------+------------------------------------+
                                      |
-                                     | HTTP REST / Whitelist RPC
+                                     | Authenticated RPC / REST Proxy
                                      v
 +-------------------------------------------------------------------------+
-|                 Frappe Control Site (development.localhost)             |
+|                 Adadiko Hub Control Site (control.localhost)            |
 |                                                                         |
 |  DocTypes:                                                              |
 |   - Client Company (Tenants & Site URLs)                                |
-|   - Module Item (Catalog & List Pricing)                                |
-|   - Client Order (Invoices & Settlements)                               |
-|   - Client Subscription (Contracts & Expiry Dates)                      |
-|   - Activity Log (Audit Trail)                                          |
+|   - Hub Order (Invoices & Settlements)                                  |
+|   - Hub Subscription (Contracts & Expiry Dates)                         |
+|   - Hub Activity (Staff Audit Trail)                                    |
 +-------------------+---------------------------------+-------------------+
                     |                                 |
                     | Provisions                      | Provisions
                     v                                 v
 +----------------------------------+ +----------------------------------+
 |  Tenant Workspace A              | |  Tenant Workspace B              |
-|  (apex.adadiko.cloud)            | |  (horizon.adadiko.cloud)         |
+|  (abri.localhost)                | |  (fantech.localhost)             |
 |  Modules: Sales, Stock, Accounts | |  Modules: Sales, Stock, Mfg, CRM |
 +----------------------------------+ +----------------------------------+
 ```
 
 ---
 
-## 2. Service Layer & Mode Switching
+## 2. Service Layer & Live Data Access
 
 The application adheres to strict architectural isolation:
 - All screens query data **exclusively** through `getAdminApi()` (`src/services/admin.ts`).
-- Screens **never** directly import mock files or hardcode API endpoints.
-- **Switching Modes**:
-  - Controlled via `VITE_API_MODE=mock` or `VITE_API_MODE=frappe` in `.env`.
-  - Can also be dynamically toggled in runtime via the **API Mode Pill** in the top navigation header.
+- Authentication runs through `getAuthApi()` (`src/services/auth.ts`).
+- All requests proxy to `control.localhost:8000` via Vite `/api` proxy with automatic CSRF token management.
+- Live data only: zero mock fallbacks or demo profiles.
 
 ---
 
 ## 3. Control Site DocTypes Specification
 
 ### 3.1 `Client Company`
-Represents an individual tenant business organization subscribing to Adadiko Hub.
-* **DocType**: `Client Company`
-* **Naming**: `cli_{slug}` or series `CC-.#####`
+* **Naming**: Based on client slug
 * **Fields**:
   | Fieldname | Type | Description |
   |---|---|---|
-  | `company_name` | Data | Full legal company name (e.g., *Apex Wholesale Ltd*) |
-  | `contact_name` | Data | Primary administrative contact person |
-  | `contact_email` | Data | Primary billing / admin email |
-  | `plan` | Select | `starter`, `growth`, `enterprise` |
-  | `modules` | JSON / Table | Array of entitled module keys (`['sales', 'inventory']`) |
-  | `status` | Select | `active`, `trial`, `suspended` |
-  | `users_count` | Int | Current active user seats provisioned on bench |
-  | `start_date` | Date | Account creation date |
-  | `renewal_date` | Date | Next contract renewal or trial expiration |
-  | `site_name` | Data | Tenant subdomain (e.g., `apex.adadiko.cloud`) |
-  | `monthly_spend` | Currency | Calculated monthly recurring billing commitment |
+  | `company_name` | Data | Organization legal name |
+  | `slug` | Data | Unique subdomain prefix |
+  | `site_name` | Data | Dedicated tenant domain (`<slug>.localhost`) |
+  | `status` | Select | `Ready`, `Suspended`, `Trial`, `Pending` |
+  | `plan` | Link -> `Plan` | Contracted tier |
+  | `contact_name` | Data | Primary administrator |
+  | `contact_email` | Data | Primary email |
 
-### 3.2 `Module Item`
-Defines available business modules in the marketplace catalog.
-* **DocType**: `Module Item`
-* **Naming**: `mod_{key}` (e.g., `mod_sales`, `mod_inventory`)
+### 3.2 `Hub Order`
+* **Naming**: `ORD-.#####`
 * **Fields**:
   | Fieldname | Type | Description |
   |---|---|---|
-  | `module_key` | Data | Unique identifier (`sales`, `inventory`, `purchasing`, `finance`, `manufacturing`, `crm`, `hr`) |
-  | `module_name` | Data | Public display name |
-  | `description` | Small Text | Detailed capability description |
-  | `monthly_price` | Currency | List price per tenant per month |
-  | `yearly_price` | Currency | Discounted annual commitment price |
-  | `category` | Select | `core`, `operations`, `finance`, `package` |
-  | `is_core` | Check | If enabled, included by default in base plans |
-  | `is_active` | Check | Availability toggle in client checkout |
+  | `client_company` | Link -> `Client Company` | Tenant organization |
+  | `plan` | Data | Plan tier |
+  | `modules` | Small Text | Active modules |
+  | `amount` | Currency | Billed amount |
+  | `payment_status` | Select | `Paid`, `Pending`, `Failed` |
+  | `reference` | Data | Invoice or settlement reference |
+  | `created_on` | Datetime | Transaction timestamp |
 
-### 3.3 `Client Order`
-Financial billing history records for client invoice payments.
-* **DocType**: `Client Order`
-* **Naming**: `ORD-.YYYY.-.####`
-* **Fields**:
-  | Fieldname | Type | Description |
-  |---|---|---|
-  | `order_number` | Data | Reference code |
-  | `client_company` | Link -> `Client Company` | Associated tenant |
-  | `amount` | Currency | Total transaction amount |
-  | `transaction_date`| Date | Settlement timestamp |
-  | `status` | Select | `paid`, `pending`, `failed` |
-  | `plan` | Select | `starter`, `growth`, `enterprise` |
-  | `invoice_ref` | Data | External ERPNext Sales Invoice or Stripe Ref |
-
-### 3.4 `Client Subscription`
-Tracks recurring contract renewal milestones and automated extensions.
-* **DocType**: `Client Subscription`
+### 3.3 `Hub Subscription`
 * **Naming**: `SUB-.#####`
 * **Fields**:
   | Fieldname | Type | Description |
   |---|---|---|
-  | `client_company` | Link -> `Client Company` | Tenant company |
-  | `plan` | Select | `starter`, `growth`, `enterprise` |
-  | `billing_cycle` | Select | `monthly`, `yearly` |
-  | `amount` | Currency | Billed rate per cycle |
-  | `start_date` | Date | Subscription commencement |
-  | `renewal_date` | Date | Contract expiration date |
-  | `status` | Select | `active`, `past_due`, `expiring`, `canceled` |
-  | `auto_renew` | Check | Automatic payment processing flag |
+  | `client_company` | Link -> `Client Company` | Tenant organization |
+  | `plan` | Data | Plan tier |
+  | `status` | Select | `Active`, `Trial`, `Overdue`, `Suspended`, `Cancelled` |
+  | `start_date` | Date | Effective inception date |
+  | `renewal_date` | Date | Contract renewal milestone |
+  | `amount` | Currency | Recurring run rate |
 
-### 3.5 `Activity Log`
-Immutable administrative audit log of all decisions made by Adadiko staff.
-* **DocType**: `Activity Log`
+### 3.4 `Hub Activity`
 * **Naming**: Auto UUID or Hash
 * **Fields**:
   | Fieldname | Type | Description |
   |---|---|---|
-  | `timestamp` | Datetime | Exact UTC timestamp |
-  | `log_type` | Select | `sign_in`, `plan_change`, `suspension`, `error`, `staff_action` |
+  | `created_on` | Datetime | Exact UTC timestamp |
+  | `action` | Select | `sign_in`, `plan_change`, `suspension`, `error`, `staff_action` |
   | `client_company` | Link -> `Client Company` | Target organization (optional) |
   | `staff_user` | Data | Name and email of operating staff member |
   | `details` | Text | Human-readable explanation of action |
-  | `ip_address` | Data | Request origin IP address |
 
 ---
 
-## 4. Frappe Control Site Whitelisted API Methods
+## 4. Control Site Whitelisted API Methods
 
-Located in Frappe custom app (`adadiko_hub/admin.py`):
+Located in custom app (`adadiko_hub/admin_api.py`):
 
 | Method Name | HTTP Method | Arguments | Returns |
 |---|---|---|---|
-| `adadiko_hub.admin.get_overview` | `GET` | — | Telemetry summary: active clients, MRR, signups |
-| `adadiko_hub.admin.list_clients` | `GET` | `status`, `search` | Array of `Client Company` dicts |
-| `adadiko_hub.admin.get_client` | `GET` | `id` | Single `Client Company` record with logs |
-| `adadiko_hub.admin.update_client_plan`| `POST` | `client_id`, `plan`, `modules` | Updated `Client Company` record |
-| `adadiko_hub.admin.set_client_status` | `POST` | `client_id`, `status` | Updated `Client Company` record |
-| `adadiko_hub.admin.add_client_note` | `POST` | `client_id`, `note` | Updated `Client Company` record |
-| `adadiko_hub.admin.list_orders` | `GET` | `status`, `search` | Array of `Client Order` dicts |
-| `adadiko_hub.admin.list_subscriptions`| `GET` | `status`, `search` | Array of `Client Subscription` dicts |
-| `adadiko_hub.admin.renew_subscription`| `POST` | `subscription_id`, `extension_months`| Extended `Client Subscription` |
-| `adadiko_hub.admin.list_catalog` | `GET` | — | Array of `Module Item` records |
-| `adadiko_hub.admin.update_module_price`| `POST`| `module_key`, `monthly_price`, `yearly_price` | Updated `Module Item` |
-| `adadiko_hub.admin.list_logs` | `GET` | `type`, `search` | Array of `Activity Log` entries |
-| `adadiko_hub.admin.list_staff` | `GET` | — | Array of `StaffUser` records |
-| `adadiko_hub.admin.invite_staff` | `POST` | `name`, `email`, `role` | Created `StaffUser` record |
+| `adadiko_hub.admin_api.staff_session` | `GET` | — | Current authenticated staff user and permissions |
+| `adadiko_hub.admin_api.get_overview` | `GET` | — | Telemetry summary: active clients, MRR, signups |
+| `adadiko_hub.admin_api.list_clients` | `GET` | `status`, `search` | Array of `Client Company` dicts |
+| `adadiko_hub.admin_api.get_client` | `GET` | `slug` | Single `Client Company` record with logs |
+| `adadiko_hub.admin_api.change_plan` | `POST` | `slug`, `plan` | Updated `Client Company` record |
+| `adadiko_hub.admin_api.suspend_client` | `POST` | `slug`, `reason` | Suspended client record |
+| `adadiko_hub.admin_api.reactivate_client` | `POST` | `slug` | Reactivated client record |
+| `adadiko_hub.admin_api.add_client_note` | `POST` | `slug`, `note` | Updated `Client Company` record |
+| `adadiko_hub.admin_api.list_orders` | `GET` | `status`, `client_company`, `search` | Array of `Hub Order` dicts |
+| `adadiko_hub.admin_api.list_subscriptions` | `GET` | `status`, `search` | Array of `Hub Subscription` dicts |
+| `adadiko_hub.admin_api.renew_subscription` | `POST` | `slug`, `months` | Extended `Hub Subscription` |
+| `adadiko_hub.admin_api.list_catalog` | `GET` | — | Array of plans & modules |
+| `adadiko_hub.admin_api.update_plan_price` | `POST` | `plan`, `price` | Updated plan price |
+| `adadiko_hub.admin_api.list_logs` | `GET` | `action`, `client`, `staff` | Array of `Hub Activity` entries |
+| `adadiko_hub.admin_api.list_staff` | `GET` | — | Array of `StaffUser` records |
+| `adadiko_hub.admin_api.invite_staff` | `POST` | `full_name`, `email`, `role` | Created staff record + temp password |
 
 ---
 
@@ -173,23 +142,10 @@ Adadiko Dashboard strictly implements role gating:
 
 ---
 
-## 6. Verification & Demo Procedures
+## 6. Build & Verification
 
-1. **Start Dev Server**:
-   ```bash
-   cd c:\Users\HP\Desktop\erp\Adadiko-Dashboard
-   npm run dev
-   ```
-   Access at `http://localhost:5174`.
-
-2. **Role Verification**:
-   - Click the top navigation role switcher buttons: **Admin**, **Support**, **Billing**.
-   - Notice the immediate dynamic recalculation of allowed tabs and capability buttons.
-   - For example, switching to **Support** hides Billing tabs and restricts plan changing/suspension while preserving diagnostic note adding.
-   - Switching to **Billing** reveals financial orders, subscriptions, and contract renewal tools.
-
-3. **Production Build Check**:
-   ```bash
-   npm run build
-   ```
-   Ensures 0 TypeScript compilation errors and clean Vite chunk generation.
+```bash
+cd c:\Users\HP\Desktop\erp\Adadiko-Dashboard
+npm run build
+```
+Ensures 0 TypeScript compilation errors and clean Vite chunk generation.

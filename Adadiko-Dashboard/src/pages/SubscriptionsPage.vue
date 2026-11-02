@@ -306,7 +306,7 @@ const handleRenewSubscription = async () => {
         </div>
 
         <p class="text-ink-muted leading-relaxed">
-          Extending this contract will automatically reset the subscription status to <strong>Active</strong> and update tenant renewal dates across the ERPNext control site.
+          Extending this contract will automatically reset the subscription status to <strong>Active</strong> and update tenant renewal dates across the platform.
         </p>
       </div>
 

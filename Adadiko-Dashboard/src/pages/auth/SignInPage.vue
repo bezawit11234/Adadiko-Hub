@@ -3,16 +3,12 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
-import { DEMO_STAFF } from '@/data/roles'
-import type { StaffRole } from '@/types'
 import AppButton from '@/components/common/AppButton.vue'
 import TextField from '@/components/common/TextField.vue'
-import AppIcon from '@/components/common/AppIcon.vue'
-import Badge from '@/components/common/Badge.vue'
 
 const router = useRouter()
 const route = useRoute()
-const { login, loginAsDemo, apiMode } = useSession()
+const { login } = useSession()
 const { showToast } = useToast()
 
 const email = ref('')
@@ -39,18 +35,6 @@ const handleSignIn = async () => {
     loading.value = false
   }
 }
-
-const handleQuickDemo = async (role: StaffRole) => {
-  await loginAsDemo(role)
-  const staff = DEMO_STAFF[role]
-  showToast({
-    title: 'Demo Access Granted',
-    message: `Signed in as ${staff.name} (${role.toUpperCase()})`,
-    type: 'info',
-  })
-  const redirect = (route.query.next as string) || '/overview'
-  router.push(redirect)
-}
 </script>
 
 <template>
@@ -60,7 +44,7 @@ const handleQuickDemo = async (role: StaffRole) => {
         id="staff-email"
         label="Staff Work Email"
         v-model="email"
-        placeholder="elena.admin@adadiko.internal"
+        placeholder="admin@adadiko.com"
         autocomplete="email"
       />
 
@@ -82,71 +66,5 @@ const handleQuickDemo = async (role: StaffRole) => {
         Sign In to Dashboard
       </AppButton>
     </form>
-
-    <!-- Quick Demo Accounts (Hidden in real Frappe mode) -->
-    <div v-if="apiMode !== 'frappe'" class="pt-4 border-t border-stone-border">
-      <p class="text-xs font-semibold text-ink-muted uppercase tracking-wider mb-3">
-        1-Click Demo Profiles:
-      </p>
-
-      <div class="space-y-2">
-        <button
-          type="button"
-          @click="handleQuickDemo('admin')"
-          class="w-full flex items-center justify-between p-2.5 rounded-xl border border-stone-border bg-stone-subtle hover:bg-stone-muted/50 transition-colors text-left text-xs group"
-        >
-          <div class="flex items-center gap-2.5">
-            <div class="w-7 h-7 rounded-lg bg-signal/15 text-signal flex items-center justify-center font-bold">
-              ER
-            </div>
-            <div>
-              <div class="font-medium text-ink group-hover:text-signal transition-colors">
-                Elena Rostova
-              </div>
-              <div class="text-[11px] text-ink-muted">Full Control &bull; Admin</div>
-            </div>
-          </div>
-          <Badge variant="accent">Admin</Badge>
-        </button>
-
-        <button
-          type="button"
-          @click="handleQuickDemo('support')"
-          class="w-full flex items-center justify-between p-2.5 rounded-xl border border-stone-border bg-stone-subtle hover:bg-stone-muted/50 transition-colors text-left text-xs group"
-        >
-          <div class="flex items-center gap-2.5">
-            <div class="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
-              SO
-            </div>
-            <div>
-              <div class="font-medium text-ink group-hover:text-status-blue transition-colors">
-                Sam O'Connor
-              </div>
-              <div class="text-[11px] text-ink-muted">Read-Only Diagnostics &bull; Support</div>
-            </div>
-          </div>
-          <Badge variant="neutral">Support</Badge>
-        </button>
-
-        <button
-          type="button"
-          @click="handleQuickDemo('billing')"
-          class="w-full flex items-center justify-between p-2.5 rounded-xl border border-stone-border bg-stone-subtle hover:bg-stone-muted/50 transition-colors text-left text-xs group"
-        >
-          <div class="flex items-center gap-2.5">
-            <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-              FG
-            </div>
-            <div>
-              <div class="font-medium text-ink group-hover:text-status-green transition-colors">
-                Fiona Gallagher
-              </div>
-              <div class="text-[11px] text-ink-muted">Subscriptions &amp; Orders &bull; Billing</div>
-            </div>
-          </div>
-          <Badge variant="success">Billing</Badge>
-        </button>
-      </div>
-    </div>
   </div>
 </template>

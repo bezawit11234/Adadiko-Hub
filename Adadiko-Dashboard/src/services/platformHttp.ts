@@ -1,7 +1,7 @@
 /**
- * Adadiko Dashboard — Frappe HTTP Client
+ * Adadiko Dashboard — Platform HTTP Client
  *
- * Handles authenticated API calls to Frappe ERPNext control site.
+ * Handles authenticated API calls to Adadiko Hub control backend.
  * Reads CSRF token from cookies, proxies through Vite to port 8000.
  */
 
@@ -36,25 +36,25 @@ export function getCsrfToken(): string | null {
   return getCookie('csrf_token')
 }
 
-export interface FrappeResponse<T = any> {
+export interface PlatformApiResponse<T = any> {
   message?: T
   exc?: string
   _server_messages?: string
 }
 
-export class FrappeHttpError extends Error {
+export class PlatformHttpError extends Error {
   status: number
   serverMessages?: string[]
 
   constructor(message: string, status: number, serverMessages?: string[]) {
     super(message)
-    this.name = 'FrappeHttpError'
+    this.name = 'PlatformHttpError'
     this.status = status
     this.serverMessages = serverMessages
   }
 }
 
-export async function frappeRequest<T = any>(
+export async function platformRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -116,8 +116,12 @@ export async function frappeRequest<T = any>(
       errorMsg = typeof body.message === 'string' ? body.message : JSON.stringify(body.message)
     }
 
-    throw new FrappeHttpError(errorMsg, response.status, serverMessages)
+    throw new PlatformHttpError(errorMsg, response.status, serverMessages)
   }
 
   return (body?.message !== undefined ? body.message : body) as T
 }
+
+// Backward compatibility aliases
+export const frappeRequest = platformRequest
+export const FrappeHttpError = PlatformHttpError

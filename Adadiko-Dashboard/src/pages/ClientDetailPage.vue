@@ -5,7 +5,7 @@ import { getAdminApi } from '@/services/admin'
 import { useAccess } from '@/composables/useAccess'
 import { useToast } from '@/composables/useToast'
 import type { ClientCompany, Plan, ModuleItem } from '@/types'
-import { PLAN_DEFINITIONS } from '@/data/mockAdmin'
+import { PLAN_DEFINITIONS } from '@/data/plans'
 import { formatCurrency, formatDate } from '@/utils/format'
 import PageContainer from '@/components/common/PageContainer.vue'
 import AppButton from '@/components/common/AppButton.vue'
@@ -273,7 +273,7 @@ const openWorkspaceSite = () => {
             <span class="font-mono font-medium text-ink">{{ formatDate(client.renewalDate) }}</span>
           </div>
           <div class="flex justify-between items-center py-1">
-            <span class="text-ink-muted">Frappe Bench Site:</span>
+            <span class="text-ink-muted">Dedicated Tenant Domain:</span>
             <span class="font-mono text-[11px] text-ink-muted">{{ client.siteName }}</span>
           </div>
         </div>
@@ -289,7 +289,7 @@ const openWorkspaceSite = () => {
           <h3 class="font-heading font-bold text-base text-ink">
             Active Tenant Modules ({{ client.modules.length }})
           </h3>
-          <span class="text-xs text-ink-muted">ERPNext v16 App Entitlements</span>
+          <span class="text-xs text-ink-muted">Active Platform Entitlements</span>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -471,7 +471,7 @@ const openWorkspaceSite = () => {
 
         <p class="text-ink-muted">
           {{ client.status === 'suspended'
-            ? 'Reactivating will immediately restore full portal and Frappe API access to all client staff.'
+            ? 'Reactivating will immediately restore full portal and workspace access to all client staff.'
             : 'Suspending will immediately lock all client staff out of this workspace. The database and files remain intact on the bench.' }}
         </p>
       </div>
