@@ -5,6 +5,8 @@
  */
 
 import type {
+  Lead,
+  Opportunity,
   Customer,
   Quotation,
   SalesOrder,
@@ -14,6 +16,10 @@ import type {
   ApprovalRequest,
   SalesSummary,
 } from '@/types'
+
+export const MOCK_LEADS: Lead[] = []
+
+export const MOCK_OPPORTUNITIES: Opportunity[] = []
 
 export const MOCK_CUSTOMERS: Customer[] = []
 

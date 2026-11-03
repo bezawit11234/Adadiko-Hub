@@ -51,6 +51,19 @@ const pixelSize = computed(() => {
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </g>
 
+    <g v-else-if="name === 'user-plus' || name === 'leads'">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <line x1="19" y1="8" x2="19" y2="14" />
+      <line x1="22" y1="11" x2="16" y2="11" />
+    </g>
+
+    <g v-else-if="name === 'target' || name === 'opportunities'">
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="6" />
+      <circle cx="12" cy="12" r="2" />
+    </g>
+
     <g v-else-if="name === 'user'">
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />

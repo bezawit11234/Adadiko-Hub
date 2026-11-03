@@ -8,6 +8,8 @@
 
 import type {
   ApiResult,
+  Lead,
+  Opportunity,
   Customer,
   Quotation,
   SalesOrder,
@@ -39,6 +41,19 @@ import {
 } from './mappers'
 
 export interface SalesApi {
+  listLeads(query?: string): Promise<ApiResult<Lead[]>>
+  getLead(id: string): Promise<ApiResult<Lead>>
+  createLead(payload: { name: string; companyName?: string; email?: string; phone?: string; source?: string }): Promise<ApiResult<Lead>>
+  convertLeadToCustomer(leadId: string): Promise<ApiResult<Customer>>
+  convertLeadToOpportunity(leadId: string): Promise<ApiResult<Opportunity>>
+  convertLeadToQuotation(leadId: string): Promise<ApiResult<Quotation>>
+
+  listOpportunities(query?: string): Promise<ApiResult<Opportunity[]>>
+  getOpportunity(id: string): Promise<ApiResult<Opportunity>>
+  createOpportunity(payload: { partyName: string; partyType?: 'Lead' | 'Customer'; expectedValue?: number; expectedCloseDate?: string }): Promise<ApiResult<Opportunity>>
+  convertOpportunityToQuotation(opportunityId: string): Promise<ApiResult<Quotation>>
+  markOpportunityLost(opportunityId: string, reason?: string): Promise<ApiResult<Opportunity>>
+
   listCustomers(query?: string): Promise<ApiResult<Customer[]>>
   getCustomer(id: string): Promise<ApiResult<Customer>>
   createCustomer(payload: Omit<Customer, 'id' | 'createdDate'>): Promise<ApiResult<Customer>>
@@ -53,6 +68,7 @@ export interface SalesApi {
   createInvoiceFromOrder(salesOrderId: string): Promise<ApiResult<SalesInvoice>>
   listSalesInvoices(): Promise<ApiResult<SalesInvoice[]>>
   getSalesInvoice(id: string): Promise<ApiResult<SalesInvoice>>
+  listPayments(): Promise<ApiResult<Payment[]>>
   recordPayment(
     invoiceId: string,
     amount: number,
@@ -67,6 +83,8 @@ export interface SalesApi {
 const STORAGE_KEY_SALES = 'adadiko_mock_sales_store'
 
 interface MockSalesState {
+  leads: Lead[]
+  opportunities: Opportunity[]
   customers: Customer[]
   quotations: Quotation[]
   orders: SalesOrder[]
@@ -81,12 +99,19 @@ function getInitialMockState(): MockSalesState {
   if (typeof localStorage !== 'undefined') {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_SALES)
-      if (raw) return JSON.parse(raw)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (!parsed.leads) parsed.leads = []
+        if (!parsed.opportunities) parsed.opportunities = []
+        return parsed
+      }
     } catch {
       // fallback
     }
   }
   return {
+    leads: [],
+    opportunities: [],
     customers: [],
     quotations: [],
     orders: [],
@@ -119,6 +144,8 @@ function getInitialMockState(): MockSalesState {
 class MockSalesApi implements SalesApi {
   private state: MockSalesState = getInitialMockState()
 
+  private get leads() { return this.state.leads }
+  private get opportunities() { return this.state.opportunities }
   private get customers() { return this.state.customers }
   private get quotations() { return this.state.quotations }
   private get orders() { return this.state.orders }
@@ -140,6 +167,183 @@ class MockSalesApi implements SalesApi {
 
   private async delay(ms = 80): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
+  async listLeads(query?: string): Promise<ApiResult<Lead[]>> {
+    await this.delay()
+    if (!query) return { ok: true, data: [...this.leads] }
+    const q = query.toLowerCase()
+    return {
+      ok: true,
+      data: this.leads.filter(
+        (l) =>
+          l.name.toLowerCase().includes(q) ||
+          l.companyName.toLowerCase().includes(q) ||
+          l.email.toLowerCase().includes(q) ||
+          l.phone.toLowerCase().includes(q)
+      ),
+    }
+  }
+
+  async getLead(id: string): Promise<ApiResult<Lead>> {
+    await this.delay()
+    const found = this.leads.find((l) => l.id === id)
+    if (!found) return { ok: false, error: `Lead ${id} not found.` }
+    return { ok: true, data: { ...found } }
+  }
+
+  async createLead(payload: { name: string; companyName?: string; email?: string; phone?: string; source?: string }): Promise<ApiResult<Lead>> {
+    await this.delay()
+    const lead: Lead = {
+      id: `LEAD-2026-${String(this.leads.length + 1).padStart(4, '0')}`,
+      name: payload.name,
+      companyName: payload.companyName || payload.name,
+      email: payload.email || '',
+      phone: payload.phone || '',
+      source: payload.source || 'Direct Contact',
+      status: 'Open',
+      owner: 'Sales Rep',
+      createdDate: new Date().toISOString().split('T')[0],
+    }
+    this.leads.unshift(lead)
+    this.saveState()
+    return { ok: true, data: lead }
+  }
+
+  async convertLeadToCustomer(leadId: string): Promise<ApiResult<Customer>> {
+    await this.delay()
+    const lead = this.leads.find((l) => l.id === leadId)
+    if (!lead) return { ok: false, error: `Lead ${leadId} not found.` }
+
+    const customer: Customer = {
+      id: `CUST-2026-${String(this.customers.length + 1).padStart(4, '0')}`,
+      name: lead.companyName || lead.name,
+      email: lead.email,
+      phone: lead.phone,
+      territory: 'All Territories',
+      group: 'Commercial',
+      status: 'Active',
+      amountOwed: 0,
+      assignedTo: 'Sales Rep',
+      createdDate: new Date().toISOString().split('T')[0],
+    }
+    this.customers.unshift(customer)
+    lead.status = 'Converted'
+    lead.customer = customer.id
+    this.saveState()
+    return { ok: true, data: customer }
+  }
+
+  async convertLeadToOpportunity(leadId: string): Promise<ApiResult<Opportunity>> {
+    await this.delay()
+    const lead = this.leads.find((l) => l.id === leadId)
+    if (!lead) return { ok: false, error: `Lead ${leadId} not found.` }
+
+    const opp: Opportunity = {
+      id: `OPP-2026-${String(this.opportunities.length + 1).padStart(4, '0')}`,
+      partyName: lead.companyName || lead.name,
+      partyType: 'Lead',
+      expectedValue: 5000,
+      stage: 'Open',
+      expectedCloseDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+      owner: 'Sales Rep',
+      createdDate: new Date().toISOString().split('T')[0],
+    }
+    this.opportunities.unshift(opp)
+    lead.status = 'Replied'
+    this.saveState()
+    return { ok: true, data: opp }
+  }
+
+  async convertLeadToQuotation(leadId: string): Promise<ApiResult<Quotation>> {
+    await this.delay()
+    const lead = this.leads.find((l) => l.id === leadId)
+    if (!lead) return { ok: false, error: `Lead ${leadId} not found.` }
+
+    const qtn: Quotation = {
+      id: `QTN-2026-${String(this.quotations.length + 1).padStart(4, '0')}`,
+      customerName: lead.companyName || lead.name,
+      customerId: lead.id,
+      date: new Date().toISOString().split('T')[0],
+      validTill: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+      items: [],
+      subtotal: 0,
+      taxAmount: 0,
+      grandTotal: 0,
+      status: 'Draft',
+      createdBy: 'Sales Rep',
+    }
+    this.quotations.unshift(qtn)
+    this.saveState()
+    return { ok: true, data: qtn }
+  }
+
+  async listOpportunities(query?: string): Promise<ApiResult<Opportunity[]>> {
+    await this.delay()
+    if (!query) return { ok: true, data: [...this.opportunities] }
+    const q = query.toLowerCase()
+    return {
+      ok: true,
+      data: this.opportunities.filter((o) => o.partyName.toLowerCase().includes(q)),
+    }
+  }
+
+  async getOpportunity(id: string): Promise<ApiResult<Opportunity>> {
+    await this.delay()
+    const found = this.opportunities.find((o) => o.id === id)
+    if (!found) return { ok: false, error: `Opportunity ${id} not found.` }
+    return { ok: true, data: { ...found } }
+  }
+
+  async createOpportunity(payload: { partyName: string; partyType?: 'Lead' | 'Customer'; expectedValue?: number; expectedCloseDate?: string }): Promise<ApiResult<Opportunity>> {
+    await this.delay()
+    const opp: Opportunity = {
+      id: `OPP-2026-${String(this.opportunities.length + 1).padStart(4, '0')}`,
+      partyName: payload.partyName,
+      partyType: payload.partyType || 'Lead',
+      expectedValue: payload.expectedValue || 0,
+      stage: 'Open',
+      expectedCloseDate: payload.expectedCloseDate || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+      owner: 'Sales Rep',
+      createdDate: new Date().toISOString().split('T')[0],
+    }
+    this.opportunities.unshift(opp)
+    this.saveState()
+    return { ok: true, data: opp }
+  }
+
+  async convertOpportunityToQuotation(opportunityId: string): Promise<ApiResult<Quotation>> {
+    await this.delay()
+    const opp = this.opportunities.find((o) => o.id === opportunityId)
+    if (!opp) return { ok: false, error: `Opportunity ${opportunityId} not found.` }
+
+    const qtn: Quotation = {
+      id: `QTN-2026-${String(this.quotations.length + 1).padStart(4, '0')}`,
+      customerName: opp.partyName,
+      customerId: opp.partyName,
+      date: new Date().toISOString().split('T')[0],
+      validTill: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+      items: [],
+      subtotal: opp.expectedValue || 0,
+      taxAmount: 0,
+      grandTotal: opp.expectedValue || 0,
+      status: 'Draft',
+      createdBy: 'Sales Rep',
+    }
+    this.quotations.unshift(qtn)
+    opp.stage = 'Quotation'
+    opp.quotationId = qtn.id
+    this.saveState()
+    return { ok: true, data: qtn }
+  }
+
+  async markOpportunityLost(opportunityId: string, reason = 'Lost'): Promise<ApiResult<Opportunity>> {
+    await this.delay()
+    const opp = this.opportunities.find((o) => o.id === opportunityId)
+    if (!opp) return { ok: false, error: `Opportunity ${opportunityId} not found.` }
+    opp.stage = 'Lost'
+    this.saveState()
+    return { ok: true, data: opp }
   }
 
   async listCustomers(query?: string): Promise<ApiResult<Customer[]>> {
@@ -315,6 +519,11 @@ class MockSalesApi implements SalesApi {
     return { ok: true, data: { ...found } }
   }
 
+  async listPayments(): Promise<ApiResult<Payment[]>> {
+    await this.delay()
+    return { ok: true, data: [...this.payments] }
+  }
+
   async recordPayment(
     invoiceId: string,
     amount: number,
@@ -453,6 +662,190 @@ class MockSalesApi implements SalesApi {
  * Each method below documents the corresponding ERPNext DocType and Frappe method.
  */
 class FrappeSalesApi implements SalesApi {
+  async listLeads(query?: string): Promise<ApiResult<Lead[]>> {
+    const res = await frappeFetch<any[]>('/api/method/adadiko_hub.api.list_leads')
+    if (!res.ok || !res.data) return { ok: true, data: [] }
+    let list = res.data
+    if (query) {
+      const q = query.toLowerCase()
+      list = list.filter(
+        (l: any) =>
+          (l.name && l.name.toLowerCase().includes(q)) ||
+          (l.companyName && l.companyName.toLowerCase().includes(q)) ||
+          (l.email && l.email.toLowerCase().includes(q)) ||
+          (l.phone && l.phone.toLowerCase().includes(q))
+      )
+    }
+    return { ok: true, data: list }
+  }
+
+  async getLead(id: string): Promise<ApiResult<Lead>> {
+    const res = await frappeFetch<any>(`/api/resource/Lead/${encodeURIComponent(id)}`)
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    const l = res.data
+    return {
+      ok: true,
+      data: {
+        id: l.name,
+        name: l.lead_name || l.name,
+        companyName: l.company_name || '',
+        email: l.email_id || '',
+        phone: l.mobile_no || l.phone || '',
+        source: l.source || 'Direct',
+        status: l.status || 'Open',
+        customer: l.customer || '',
+        owner: l.owner || '',
+        createdDate: String(l.creation || '').slice(0, 10),
+      },
+    }
+  }
+
+  async createLead(payload: { name: string; companyName?: string; email?: string; phone?: string; source?: string }): Promise<ApiResult<Lead>> {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.create_lead', {
+      method: 'POST',
+      body: JSON.stringify({
+        lead_name: payload.name,
+        company_name: payload.companyName,
+        email: payload.email,
+        phone: payload.phone,
+        source: payload.source,
+      }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: res.data }
+  }
+
+  async convertLeadToCustomer(leadId: string): Promise<ApiResult<Customer>> {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.convert_lead_to_customer', {
+      method: 'POST',
+      body: JSON.stringify({ lead_id: leadId }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: res.data }
+  }
+
+  async convertLeadToOpportunity(leadId: string): Promise<ApiResult<Opportunity>> {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.convert_lead_to_opportunity', {
+      method: 'POST',
+      body: JSON.stringify({ lead_id: leadId }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: res.data }
+  }
+
+  async convertLeadToQuotation(leadId: string): Promise<ApiResult<Quotation>> {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.convert_lead_to_quotation', {
+      method: 'POST',
+      body: JSON.stringify({ lead_id: leadId }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return {
+      ok: true,
+      data: {
+        id: `QTN-LEAD-${leadId}`,
+        customerName: leadId,
+        customerId: leadId,
+        date: new Date().toISOString().split('T')[0],
+        validTill: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+        items: [],
+        subtotal: 0,
+        taxAmount: 0,
+        grandTotal: 0,
+        status: 'Draft',
+        createdBy: 'Sales Rep',
+      },
+    }
+  }
+
+  async listOpportunities(query?: string): Promise<ApiResult<Opportunity[]>> {
+    const res = await frappeFetch<any[]>('/api/method/adadiko_hub.api.list_opportunities')
+    if (!res.ok || !res.data) return { ok: true, data: [] }
+    let list = res.data
+    if (query) {
+      const q = query.toLowerCase()
+      list = list.filter((o: any) => o.partyName && o.partyName.toLowerCase().includes(q))
+    }
+    return { ok: true, data: list }
+  }
+
+  async getOpportunity(id: string): Promise<ApiResult<Opportunity>> {
+    const res = await frappeFetch<any>(`/api/resource/Opportunity/${encodeURIComponent(id)}`)
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    const o = res.data
+    return {
+      ok: true,
+      data: {
+        id: o.name,
+        partyName: o.party_name || o.name,
+        partyType: o.opportunity_from || 'Lead',
+        expectedValue: Number(o.opportunity_amount || 0),
+        stage: o.status || 'Open',
+        expectedCloseDate: String(o.expected_closing || '').slice(0, 10),
+        owner: o.owner || '',
+        createdDate: String(o.creation || '').slice(0, 10),
+      },
+    }
+  }
+
+  async createOpportunity(payload: { partyName: string; partyType?: 'Lead' | 'Customer'; expectedValue?: number; expectedCloseDate?: string }): Promise<ApiResult<Opportunity>> {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.create_opportunity', {
+      method: 'POST',
+      body: JSON.stringify({
+        party_name: payload.partyName,
+        party_type: payload.partyType || 'Lead',
+        expected_value: payload.expectedValue || 0,
+        expected_close_date: payload.expectedCloseDate,
+      }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: res.data }
+  }
+
+  async convertOpportunityToQuotation(opportunityId: string): Promise<ApiResult<Quotation>> {
+    const res = await frappeFetch<any>('/api/method/erpnext.crm.doctype.opportunity.opportunity.make_quotation', {
+      method: 'POST',
+      body: JSON.stringify({ source_name: opportunityId }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return {
+      ok: true,
+      data: {
+        id: res.data.name || `QTN-OPP-${opportunityId}`,
+        customerName: res.data.party_name || opportunityId,
+        customerId: res.data.party_name || opportunityId,
+        date: res.data.transaction_date || new Date().toISOString().split('T')[0],
+        validTill: res.data.valid_till || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+        items: [],
+        subtotal: Number(res.data.net_total || 0),
+        taxAmount: Number(res.data.total_taxes_and_charges || 0),
+        grandTotal: Number(res.data.grand_total || 0),
+        status: 'Draft',
+        createdBy: res.data.owner || 'Sales Rep',
+      },
+    }
+  }
+
+  async markOpportunityLost(opportunityId: string, reason = 'Lost'): Promise<ApiResult<Opportunity>> {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.mark_opportunity_lost', {
+      method: 'POST',
+      body: JSON.stringify({ opportunity_id: opportunityId, reason }),
+    })
+    if (!res.ok) return { ok: false, error: res.error }
+    return {
+      ok: true,
+      data: {
+        id: opportunityId,
+        partyName: '',
+        partyType: 'Lead',
+        expectedValue: 0,
+        stage: 'Lost',
+        expectedCloseDate: '',
+        owner: '',
+        createdDate: '',
+      },
+    }
+  }
+
   async listCustomers(query?: string): Promise<ApiResult<Customer[]>> {
     const fields = encodeURIComponent(
       JSON.stringify([
@@ -728,6 +1121,36 @@ class FrappeSalesApi implements SalesApi {
     const res = await frappeFetch<any>(`/api/resource/Sales%20Invoice/${encodeURIComponent(id)}`)
     if (!res.ok || !res.data) return { ok: false, error: res.error }
     return { ok: true, data: mapSalesInvoice(res.data) }
+  }
+
+  async listPayments(): Promise<ApiResult<Payment[]>> {
+    const fields = encodeURIComponent(
+      JSON.stringify([
+        'name',
+        'posting_date',
+        'party_name',
+        'party',
+        'paid_amount',
+        'mode_of_payment',
+        'reference_no',
+        'owner',
+      ])
+    )
+    const res = await frappeFetch<any[]>(
+      `/api/resource/Payment%20Entry?fields=${fields}&order_by=creation%20desc&limit_page_length=100`
+    )
+    if (!res.ok || !res.data) return { ok: true, data: [] }
+    const payments: Payment[] = res.data.map((p) => ({
+      id: p.name,
+      invoiceId: '',
+      customerName: p.party_name || p.party || 'Customer',
+      amount: Number(p.paid_amount || 0),
+      date: p.posting_date || '',
+      modeOfPayment: (p.mode_of_payment as any) || 'Bank Transfer',
+      referenceNo: p.reference_no || p.name,
+      receivedBy: p.owner || 'Finance Desk',
+    }))
+    return { ok: true, data: payments }
   }
 
   async recordPayment(

@@ -42,7 +42,7 @@ interface NavItem {
   locked?: boolean
 }
 
-const salesNavItems = computed<NavItem[]>(() => [
+const homeNavItems = computed<NavItem[]>(() => [
   {
     id: 'rep_home',
     label: 'Sales Rep Today',
@@ -56,6 +56,23 @@ const salesNavItems = computed<NavItem[]>(() => [
     path: '/app/sales/dashboard',
     icon: 'dashboard',
     visible: currentRole.value === 'sales_manager' || currentRole.value === 'admin',
+  },
+])
+
+const salesNavItems = computed<NavItem[]>(() => [
+  {
+    id: 'leads',
+    label: 'Leads',
+    path: '/app/sales/leads',
+    icon: 'user-plus',
+    visible: currentRole.value === 'sales_rep' || currentRole.value === 'sales_manager' || currentRole.value === 'admin',
+  },
+  {
+    id: 'opportunities',
+    label: 'Opportunities',
+    path: '/app/sales/opportunities',
+    icon: 'target',
+    visible: currentRole.value === 'sales_rep' || currentRole.value === 'sales_manager' || currentRole.value === 'admin',
   },
   {
     id: 'customers',
@@ -88,9 +105,16 @@ const salesNavItems = computed<NavItem[]>(() => [
   },
   {
     id: 'invoices',
-    label: 'Invoices & Payments',
+    label: 'Invoices',
     path: '/app/sales/invoices',
     icon: 'invoices',
+    visible: currentRole.value === 'accountant' || currentRole.value === 'sales_manager' || currentRole.value === 'admin',
+  },
+  {
+    id: 'payments',
+    label: 'Payments',
+    path: '/app/sales/payments',
+    icon: 'credit-card',
     visible: currentRole.value === 'accountant' || currentRole.value === 'sales_manager' || currentRole.value === 'admin',
   },
 ])
@@ -215,6 +239,40 @@ function triggerCommandPalette() {
 
       <!-- Navigation Content -->
       <div class="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+        <!-- Sales Overview Section -->
+        <div v-if="homeNavItems.some(i => i.visible)">
+          <div class="px-3 pb-2 flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-stone-bg/40 font-heading">
+              Overview
+            </span>
+          </div>
+
+          <nav class="space-y-1">
+            <template v-for="item in homeNavItems" :key="item.id">
+              <RouterLink
+                v-if="item.visible"
+                :to="item.path"
+                :class="[
+                  'group flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl transition-all duration-150',
+                  route.path === item.path
+                    ? 'bg-ink-deep text-white nav-active-pill font-semibold shadow-xs'
+                    : 'text-stone-bg/70 hover:text-white hover:bg-ink-deep/50',
+                ]"
+                @click="mobileDrawerOpen = false"
+              >
+                <div class="flex items-center gap-3">
+                  <AppIcon
+                    :name="item.icon"
+                    :size="16"
+                    :className="route.path === item.path ? 'text-signal' : 'text-stone-bg/50 group-hover:text-white'"
+                  />
+                  <span>{{ item.label }}</span>
+                </div>
+              </RouterLink>
+            </template>
+          </nav>
+        </div>
+
         <!-- Sales Module Section -->
         <div>
           <div class="px-3 pb-2 flex items-center justify-between">

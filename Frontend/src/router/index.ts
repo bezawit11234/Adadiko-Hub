@@ -173,6 +173,24 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/sales/InvoiceDetailPage.vue'),
         meta: { module: 'sales', allowedRoles: ['accountant', 'sales_manager', 'admin'] },
       },
+      {
+        path: 'sales/payments',
+        name: 'sales-payments',
+        component: () => import('@/pages/sales/PaymentsPage.vue'),
+        meta: { module: 'sales', allowedRoles: ['accountant', 'sales_manager', 'admin'] },
+      },
+      {
+        path: 'sales/leads',
+        name: 'sales-leads',
+        component: () => import('@/pages/sales/LeadsPage.vue'),
+        meta: { module: 'sales', allowedRoles: ['sales_rep', 'sales_manager', 'admin'] },
+      },
+      {
+        path: 'sales/opportunities',
+        name: 'sales-opportunities',
+        component: () => import('@/pages/sales/OpportunitiesPage.vue'),
+        meta: { module: 'sales', allowedRoles: ['sales_rep', 'sales_manager', 'admin'] },
+      },
       // Admin screens
       {
         path: 'users',

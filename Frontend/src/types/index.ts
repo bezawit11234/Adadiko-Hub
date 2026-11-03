@@ -60,6 +60,35 @@ export interface ApiResult<T> {
 
 // --- SALES MODULE DOCTYPES ---
 
+// Lead representation
+// ERPNext DocType: "Lead"
+export interface Lead {
+  id: string
+  name: string
+  companyName: string
+  email: string
+  phone: string
+  source: string
+  status: 'Open' | 'Replied' | 'Converted' | 'Lost' | string
+  customer?: string
+  owner: string
+  createdDate: string
+}
+
+// Opportunity representation
+// ERPNext DocType: "Opportunity"
+export interface Opportunity {
+  id: string
+  partyName: string
+  partyType: 'Lead' | 'Customer'
+  expectedValue: number
+  stage: 'Open' | 'Quotation' | 'Converted' | 'Lost' | string
+  expectedCloseDate: string
+  owner: string
+  createdDate: string
+  quotationId?: string
+}
+
 // Customer representation
 // ERPNext DocType: "Customer"
 // ERPNext fields: name, customer_name, customer_group, territory, customer_type, email_id, mobile_no, outstanding_amount
