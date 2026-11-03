@@ -83,6 +83,7 @@ export interface Opportunity {
   partyType: 'Lead' | 'Customer'
   expectedValue: number
   stage: 'Open' | 'Quotation' | 'Converted' | 'Lost' | string
+  status?: 'Open' | 'Closed' | 'Lost' | string
   expectedCloseDate: string
   owner: string
   createdDate: string
@@ -250,8 +251,14 @@ export interface SalesSummary {
   openOrdersValue: number
   unpaidInvoicesCount: number
   unpaidInvoicesTotal: number
+  openLeadsCount?: number
+  openOpportunitiesCount?: number
+  quotationsWaitingCount?: number
   pipelineCounts: {
+    leads?: number
+    opportunities?: number
     quotations: number
+    quotationsWaiting?: number
     orders: number
     delivered: number
     invoiced: number

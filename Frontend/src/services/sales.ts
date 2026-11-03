@@ -676,6 +676,9 @@ class MockSalesApi implements SalesApi {
     const unpaidInvoices = this.invoices.filter((i) => i.status !== 'Paid' && i.outstandingAmount > 0)
     const openOrders = this.orders.filter((o) => o.status !== 'Completed' && o.status !== 'Cancelled')
     const completedOrders = this.orders.filter((o) => o.status === 'Completed' || o.billingStatus === 'Paid')
+    const openLeads = this.leads.filter((l) => l.status === 'Open' || l.status === 'Replied')
+    const openOpps = this.opportunities.filter((o) => (o.stage === 'Open' || o.status === 'Open'))
+    const quotesWaiting = this.quotations.filter((q) => q.status === 'Draft' || q.status === 'Submitted')
 
     const salesToday =
       this.payments
@@ -701,8 +704,14 @@ class MockSalesApi implements SalesApi {
       openOrdersValue: openOrders.reduce((acc, o) => acc + o.grandTotal, 0),
       unpaidInvoicesCount: unpaidInvoices.length,
       unpaidInvoicesTotal: unpaidInvoices.reduce((acc, i) => acc + i.outstandingAmount, 0),
+      openLeadsCount: openLeads.length,
+      openOpportunitiesCount: openOpps.length,
+      quotationsWaitingCount: quotesWaiting.length,
       pipelineCounts: {
+        leads: openLeads.length,
+        opportunities: openOpps.length,
         quotations: this.quotations.length,
+        quotationsWaiting: quotesWaiting.length,
         orders: this.orders.length,
         delivered: this.deliveries.length,
         invoiced: this.invoices.length,
@@ -1369,8 +1378,14 @@ class FrappeSalesApi implements SalesApi {
       openOrdersValue: Number(res.data.open_orders_value ?? 0),
       unpaidInvoicesCount: Number(res.data.unpaid_invoices_count ?? 0),
       unpaidInvoicesTotal: Number(res.data.unpaid_invoices_total ?? res.data.unpaid_invoices ?? 0),
+      openLeadsCount: Number(res.data.open_leads_count ?? 0),
+      openOpportunitiesCount: Number(res.data.open_opportunities_count ?? 0),
+      quotationsWaitingCount: Number(res.data.quotations_waiting_count ?? 0),
       pipelineCounts: {
+        leads: Number(res.data.pipeline_counts?.leads ?? 0),
+        opportunities: Number(res.data.pipeline_counts?.opportunities ?? 0),
         quotations: Number(res.data.pipeline_counts?.quotations ?? 0),
+        quotationsWaiting: Number(res.data.pipeline_counts?.quotations_waiting ?? 0),
         orders: Number(res.data.pipeline_counts?.orders ?? 0),
         delivered: Number(res.data.pipeline_counts?.delivered ?? 0),
         invoiced: Number(res.data.pipeline_counts?.invoiced ?? 0),

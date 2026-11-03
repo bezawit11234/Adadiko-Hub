@@ -165,37 +165,54 @@ const areaPoints = computed(() => {
         <span class="text-xs text-ink-muted">From quotation to cash collection</span>
       </div>
 
-      <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-center">
         <div class="p-3 bg-stone-bg/60 rounded-2xl border border-stone-border">
-          <span class="text-xs font-semibold text-ink-muted">1. Quotations</span>
+          <span class="text-xs font-semibold text-ink-muted">1. Leads (Open)</span>
           <p class="text-xl font-black text-ink font-heading num-tabular mt-1">
-            {{ summary.pipelineCounts.quotations }}
+            {{ summary.openLeadsCount ?? summary.pipelineCounts.leads ?? 0 }}
           </p>
         </div>
 
+        <div class="p-3 bg-stone-bg/60 rounded-2xl border border-stone-border">
+          <span class="text-xs font-semibold text-ink-muted">2. Opps (Open)</span>
+          <p class="text-xl font-black text-ink font-heading num-tabular mt-1">
+            {{ summary.openOpportunitiesCount ?? summary.pipelineCounts.opportunities ?? 0 }}
+          </p>
+        </div>
+
+        <div class="p-3 bg-stone-bg/60 rounded-2xl border border-stone-border">
+          <span class="text-xs font-semibold text-ink-muted">3. Quotations</span>
+          <p class="text-xl font-black text-ink font-heading num-tabular mt-1">
+            {{ summary.pipelineCounts.quotations }}
+          </p>
+          <span v-if="(summary.quotationsWaitingCount ?? 0) > 0" class="text-[10px] text-amber-600 font-medium">
+            {{ summary.quotationsWaitingCount }} waiting
+          </span>
+        </div>
+
         <div class="p-3 bg-signal-subtle/50 rounded-2xl border border-signal/30">
-          <span class="text-xs font-semibold text-signal">2. Sales Orders</span>
+          <span class="text-xs font-semibold text-signal">4. Sales Orders</span>
           <p class="text-xl font-black text-ink font-heading num-tabular mt-1">
             {{ summary.pipelineCounts.orders }}
           </p>
         </div>
 
         <div class="p-3 bg-stone-bg/60 rounded-2xl border border-stone-border">
-          <span class="text-xs font-semibold text-ink-muted">3. Delivered</span>
+          <span class="text-xs font-semibold text-ink-muted">5. Delivered</span>
           <p class="text-xl font-black text-ink font-heading num-tabular mt-1">
             {{ summary.pipelineCounts.delivered }}
           </p>
         </div>
 
         <div class="p-3 bg-stone-bg/60 rounded-2xl border border-stone-border">
-          <span class="text-xs font-semibold text-ink-muted">4. Invoiced</span>
+          <span class="text-xs font-semibold text-ink-muted">6. Invoiced</span>
           <p class="text-xl font-black text-ink font-heading num-tabular mt-1">
             {{ summary.pipelineCounts.invoiced }}
           </p>
         </div>
 
         <div class="p-3 bg-status-green-bg/60 rounded-2xl border border-status-green/30">
-          <span class="text-xs font-semibold text-status-green">5. Paid & Closed</span>
+          <span class="text-xs font-semibold text-status-green">7. Paid & Closed</span>
           <p class="text-xl font-black text-ink font-heading num-tabular mt-1">
             {{ summary.pipelineCounts.paid }}
           </p>

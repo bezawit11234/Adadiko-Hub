@@ -17,6 +17,10 @@ export type Permission =
   | 'sales:create_order'
   | 'sales:edit_order'
   | 'sales:approve_order'
+  | 'sales:view_leads'
+  | 'sales:create_lead'
+  | 'sales:view_opportunities'
+  | 'sales:create_opportunity'
   | 'sales:view_customers'
   | 'sales:create_customer'
   | 'sales:view_quotations'
@@ -85,6 +89,10 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'sales:create_order',
     'sales:edit_order',
     'sales:approve_order',
+    'sales:view_leads',
+    'sales:create_lead',
+    'sales:view_opportunities',
+    'sales:create_opportunity',
     'sales:view_customers',
     'sales:create_customer',
     'sales:view_quotations',
@@ -105,6 +113,10 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'sales:create_order',
     'sales:edit_order',
     'sales:approve_order',
+    'sales:view_leads',
+    'sales:create_lead',
+    'sales:view_opportunities',
+    'sales:create_opportunity',
     'sales:view_customers',
     'sales:create_customer',
     'sales:view_quotations',
@@ -113,11 +125,16 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'sales:create_delivery',
     'sales:view_invoices',
     'sales:create_invoice',
+    'sales:record_payment',
   ],
   sales_rep: [
     'sales:view_own_orders',
     'sales:create_order',
     'sales:edit_order',
+    'sales:view_leads',
+    'sales:create_lead',
+    'sales:view_opportunities',
+    'sales:create_opportunity',
     'sales:view_customers',
     'sales:create_customer',
     'sales:view_quotations',
@@ -126,6 +143,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
   accountant: [
     'sales:view_invoices',
+    'sales:create_invoice',
     'sales:record_payment',
     'sales:view_customers',
   ],
