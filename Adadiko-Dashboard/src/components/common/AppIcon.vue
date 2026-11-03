@@ -274,6 +274,11 @@ const pixelSize = computed(() => {
       <line x1="14" x2="14" y1="11" y2="17" />
     </g>
 
+    <g v-else-if="name === 'edit' || name === 'pencil'">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </g>
+
     <g v-else-if="name === 'external-link'">
       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
       <polyline points="15 3 21 3 21 9" />

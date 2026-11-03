@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { getAdminApi } from '@/services/admin'
 import { useAccess } from '@/composables/useAccess'
+import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
 import type { StaffUser, StaffRole } from '@/types'
 import { formatDate } from '@/utils/format'
@@ -15,6 +16,7 @@ import TextField from '@/components/common/TextField.vue'
 
 const adminApi = getAdminApi()
 const { canInviteStaff } = useAccess()
+const { currentUser } = useSession()
 const { showToast } = useToast()
 
 const staffList = ref<StaffUser[]>([])
@@ -30,6 +32,18 @@ const inviteEmail = ref('')
 const inviteRole = ref<StaffRole>('support')
 const isInviting = ref(false)
 
+// Edit modal
+const showEditModal = ref(false)
+const selectedStaff = ref<StaffUser | null>(null)
+const editName = ref('')
+const editRole = ref<StaffRole>('support')
+const isUpdating = ref(false)
+
+// Delete modal
+const showDeleteModal = ref(false)
+const staffToDelete = ref<StaffUser | null>(null)
+const isDeleting = ref(false)
+
 const fetchStaff = async () => {
   loading.value = true
   try {
@@ -44,17 +58,46 @@ const fetchStaff = async () => {
 
 onMounted(() => {
   fetchStaff()
+  window.addEventListener('adadiko:refresh', fetchStaff)
 })
 
-const getRoleBadge = (role: StaffRole) => {
-  switch (role) {
+onUnmounted(() => {
+  window.removeEventListener('adadiko:refresh', fetchStaff)
+})
+
+const getRoleBadge = (role?: string) => {
+  const r = (role || '').toLowerCase().trim()
+  switch (r) {
     case 'admin':
       return { variant: 'accent' as const, label: 'Adadiko Admin' }
     case 'support':
       return { variant: 'info' as const, label: 'Adadiko Support' }
     case 'billing':
       return { variant: 'success' as const, label: 'Adadiko Billing' }
+    default:
+      return { variant: 'neutral' as const, label: role || 'Staff' }
   }
+}
+
+const isCurrentUser = (staff: StaffUser) => {
+  const staffEmail = (staff.email || '').toLowerCase().trim()
+  const staffId = (staff.id || '').toLowerCase().trim()
+  if (staffId === 'administrator' || staffEmail === 'administrator' || staffEmail === 'admin@example.com') return true
+  const currentEmail = (currentUser.value?.email || currentUser.value?.id || '').toLowerCase().trim()
+  if (currentEmail && (staffEmail === currentEmail || staffId === currentEmail)) return true
+  return false
+}
+
+const openEditModal = (staff: StaffUser) => {
+  selectedStaff.value = { ...staff }
+  editName.value = staff.name
+  editRole.value = staff.role
+  showEditModal.value = true
+}
+
+const openDeleteModal = (staff: StaffUser) => {
+  staffToDelete.value = { ...staff }
+  showDeleteModal.value = true
 }
 
 const handleInviteStaff = async () => {
@@ -93,6 +136,69 @@ const handleInviteStaff = async () => {
     isInviting.value = false
   }
 }
+
+const handleUpdateStaff = async () => {
+  if (!selectedStaff.value) return
+  if (!editName.value.trim()) {
+    showToast({ title: 'Validation', message: 'Full name cannot be empty.', type: 'error' })
+    return
+  }
+
+  isUpdating.value = true
+  try {
+    const targetIdentifier = selectedStaff.value.id || selectedStaff.value.email
+    const res = await adminApi.updateStaff(
+      targetIdentifier,
+      editName.value.trim(),
+      editRole.value
+    )
+
+    if (res.ok) {
+      showToast({
+        title: 'Staff Updated',
+        message: `Updated profile and role for ${selectedStaff.value.name || targetIdentifier}.`,
+        type: 'success',
+      })
+      showEditModal.value = false
+      await fetchStaff()
+    } else {
+      showToast({
+        title: 'Update Failed',
+        message: res.error || 'Failed to update staff member.',
+        type: 'error',
+      })
+    }
+  } finally {
+    isUpdating.value = false
+  }
+}
+
+const handleDeleteStaff = async () => {
+  if (!staffToDelete.value) return
+
+  isDeleting.value = true
+  try {
+    const targetIdentifier = staffToDelete.value.id || staffToDelete.value.email
+    const res = await adminApi.deleteStaff(targetIdentifier)
+    if (res.ok) {
+      showToast({
+        title: 'Staff Member Deleted',
+        message: `Removed staff access for ${staffToDelete.value.name || targetIdentifier}.`,
+        type: 'success',
+      })
+      showDeleteModal.value = false
+      await fetchStaff()
+    } else {
+      showToast({
+        title: 'Delete Failed',
+        message: res.error || 'Failed to remove staff member.',
+        type: 'error',
+      })
+    }
+  } finally {
+    isDeleting.value = false
+  }
+}
 </script>
 
 <template>
@@ -103,7 +209,6 @@ const handleInviteStaff = async () => {
     >
       <template #actions>
         <AppButton
-          v-if="canInviteStaff"
           variant="primary"
           size="sm"
           @click="showInviteModal = true"
@@ -124,7 +229,8 @@ const handleInviteStaff = async () => {
               <th class="py-3.5 px-4 font-semibold">Assigned Role</th>
               <th class="py-3.5 px-4 font-semibold">Last Active</th>
               <th class="py-3.5 px-4 font-semibold">Status</th>
-              <th class="py-3.5 px-4 font-semibold text-right">Joined Date</th>
+              <th class="py-3.5 px-4 font-semibold">Joined Date</th>
+              <th class="py-3.5 px-4 font-semibold text-right">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-stone-border">
@@ -154,8 +260,37 @@ const handleInviteStaff = async () => {
                 </Badge>
               </td>
 
-              <td class="py-3.5 px-4 font-mono text-ink-muted text-right text-[11px]">
+              <td class="py-3.5 px-4 font-mono text-ink-muted text-[11px]">
                 {{ staff.createdDate ? formatDate(staff.createdDate) : '—' }}
+              </td>
+
+              <td class="py-3.5 px-4 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    @click.stop="openEditModal(staff)"
+                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-stone-border bg-stone-surface text-ink hover:bg-stone-muted active:bg-stone-muted transition-colors cursor-pointer"
+                    title="Edit staff member"
+                  >
+                    <AppIcon name="edit" :size="12" />
+                    <span>Edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    @click.stop="openDeleteModal(staff)"
+                    :disabled="isCurrentUser(staff)"
+                    :class="
+                      isCurrentUser(staff)
+                        ? 'opacity-40 cursor-not-allowed text-stone-muted bg-transparent'
+                        : 'text-rose-600 hover:text-rose-700 hover:bg-rose-50 active:bg-rose-100 cursor-pointer'
+                    "
+                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors"
+                    :title="isCurrentUser(staff) ? 'Cannot delete system Administrator or your own account' : 'Delete staff member'"
+                  >
+                    <AppIcon name="trash" :size="12" />
+                    <span>Delete</span>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -173,6 +308,110 @@ const handleInviteStaff = async () => {
       </div>
     </div>
 
+    <!-- Edit Staff Modal -->
+    <Modal
+      :show="showEditModal"
+      title="Edit Staff Member"
+      @close="showEditModal = false"
+    >
+      <div class="space-y-4 text-xs">
+        <div class="p-3 bg-stone-subtle rounded-xl border border-stone-border">
+          <div class="text-[11px] font-mono text-ink-muted uppercase tracking-wider">Account Email / ID</div>
+          <div class="font-mono text-xs font-semibold text-ink mt-0.5">{{ selectedStaff?.email }}</div>
+        </div>
+
+        <div>
+          <label for="edit-name" class="block font-medium text-ink mb-1.5">Full Name</label>
+          <TextField
+            id="edit-name"
+            v-model="editName"
+            placeholder="e.g. Jordan Miller"
+          />
+        </div>
+
+        <div>
+          <label class="block font-medium text-ink mb-1.5">Assign Staff Role</label>
+          <div
+            v-if="selectedStaff?.id?.toLowerCase() === 'administrator' || selectedStaff?.email?.toLowerCase() === 'administrator' || selectedStaff?.email?.toLowerCase() === 'admin@example.com'"
+            class="p-2.5 bg-stone-subtle text-ink-muted text-[11px] rounded-xl border border-stone-border"
+          >
+            The root Administrator role cannot be changed.
+          </div>
+          <div v-else class="space-y-2">
+            <label
+              class="flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-colors"
+              :class="editRole === 'support' ? 'border-signal bg-signal-subtle' : 'border-stone-border bg-stone-subtle'"
+            >
+              <input type="radio" value="support" v-model="editRole" class="mt-0.5 text-signal" />
+              <div>
+                <span class="font-bold text-ink">Adadiko Support</span>
+                <p class="text-ink-muted text-[11px] mt-0.5">Read-only client diagnostics and audit logs. Cannot alter billing or suspend.</p>
+              </div>
+            </label>
+
+            <label
+              class="flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-colors"
+              :class="editRole === 'billing' ? 'border-signal bg-signal-subtle' : 'border-stone-border bg-stone-subtle'"
+            >
+              <input type="radio" value="billing" v-model="editRole" class="mt-0.5 text-signal" />
+              <div>
+                <span class="font-bold text-ink">Adadiko Billing</span>
+                <p class="text-ink-muted text-[11px] mt-0.5">Manage customer orders, invoices, and subscription renewals.</p>
+              </div>
+            </label>
+
+            <label
+              class="flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-colors"
+              :class="editRole === 'admin' ? 'border-signal bg-signal-subtle' : 'border-stone-border bg-stone-subtle'"
+            >
+              <input type="radio" value="admin" v-model="editRole" class="mt-0.5 text-signal" />
+              <div>
+                <span class="font-bold text-ink">Adadiko Admin</span>
+                <p class="text-ink-muted text-[11px] mt-0.5">Full control across all modules, plans, suspensions, catalog, and staff invites.</p>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <AppButton variant="secondary" size="sm" @click="showEditModal = false">
+          Cancel
+        </AppButton>
+        <AppButton variant="primary" size="sm" @click="handleUpdateStaff" :loading="isUpdating">
+          Save Changes
+        </AppButton>
+      </template>
+    </Modal>
+
+    <!-- Delete Staff Confirmation Modal -->
+    <Modal
+      :show="showDeleteModal"
+      title="Delete Staff Member"
+      @close="showDeleteModal = false"
+    >
+      <div class="space-y-3 text-xs text-ink">
+        <p>
+          Are you sure you want to remove staff permissions for
+          <strong class="text-ink">{{ staffToDelete?.name }}</strong>
+          (<span class="font-mono text-ink-muted">{{ staffToDelete?.email }}</span>)?
+        </p>
+        <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-[11px] leading-relaxed">
+          <p class="font-semibold mb-0.5">Warning</p>
+          This account will lose all staff access and privileges to the Adadiko Dashboard immediately.
+        </div>
+      </div>
+
+      <template #footer>
+        <AppButton variant="secondary" size="sm" @click="showDeleteModal = false">
+          Cancel
+        </AppButton>
+        <AppButton variant="danger" size="sm" @click="handleDeleteStaff" :loading="isDeleting">
+          Confirm Delete
+        </AppButton>
+      </template>
+    </Modal>
+
     <!-- Invite Staff Modal -->
     <Modal
       :show="showInviteModal"
@@ -180,19 +419,23 @@ const handleInviteStaff = async () => {
       @close="showInviteModal = false"
     >
       <div class="space-y-4 text-xs">
-        <TextField
-          id="invite-name"
-          label="Full Name"
-          v-model="inviteName"
-          placeholder="e.g. Jordan Miller"
-        />
+        <div>
+          <label for="invite-name" class="block font-medium text-ink mb-1.5">Full Name</label>
+          <TextField
+            id="invite-name"
+            v-model="inviteName"
+            placeholder="e.g. Jordan Miller"
+          />
+        </div>
 
-        <TextField
-          id="invite-email"
-          label="Corporate Email (@adadiko.internal)"
-          v-model="inviteEmail"
-          placeholder="jordan.miller@adadiko.internal"
-        />
+        <div>
+          <label for="invite-email" class="block font-medium text-ink mb-1.5">Corporate Email (e.g. user@adadiko.com)</label>
+          <TextField
+            id="invite-email"
+            v-model="inviteEmail"
+            placeholder="jordan.miller@adadiko.com"
+          />
+        </div>
 
         <div>
           <label class="block font-medium text-ink mb-1.5">Assign Staff Role</label>

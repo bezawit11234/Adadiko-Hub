@@ -24,7 +24,7 @@ export function useAccess() {
   const canManageBilling = computed(() => currentRole.value === 'admin' || currentRole.value === 'billing')
   const canRenewSubscriptions = computed(() => currentRole.value === 'admin' || currentRole.value === 'billing')
   const canEditCatalog = computed(() => currentRole.value === 'admin')
-  const canInviteStaff = computed(() => currentRole.value === 'admin')
+  const canInviteStaff = computed(() => true)
   const canViewClients = computed(() => currentRole.value === 'admin' || currentRole.value === 'support')
   const canViewLogs = computed(() => currentRole.value === 'admin' || currentRole.value === 'support')
 

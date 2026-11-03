@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { getAdminApi } from '@/services/admin'
 import type { Order } from '@/types'
 import { formatCurrency, formatDate } from '@/utils/format'
@@ -11,6 +12,7 @@ import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 
+const router = useRouter()
 const adminApi = getAdminApi()
 
 const orders = ref<Order[]>([])
@@ -36,11 +38,16 @@ const fetchOrders = async () => {
 
 onMounted(() => {
   fetchOrders()
+  window.addEventListener('adadiko:refresh', fetchOrders)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('adadiko:refresh', fetchOrders)
 })
 
 const filteredOrders = computed(() => {
   return orders.value.filter((o) => {
-    const matchesStatus = selectedStatus.value === 'all' || o.status === selectedStatus.value
+    const matchesStatus = selectedStatus.value === 'all' || (o.status || '').toLowerCase() === selectedStatus.value
     const q = searchQuery.value.toLowerCase().trim()
     const matchesSearch =
       !q ||
@@ -52,20 +59,28 @@ const filteredOrders = computed(() => {
   })
 })
 
-const getStatusBadge = (status: Order['status']) => {
-  switch (status) {
+const getStatusBadge = (status?: string) => {
+  const s = (status || '').toLowerCase().trim()
+  switch (s) {
     case 'paid':
       return { variant: 'success' as const, label: 'Paid' }
     case 'pending':
       return { variant: 'warning' as const, label: 'Pending' }
     case 'failed':
       return { variant: 'danger' as const, label: 'Failed' }
+    default:
+      return { variant: 'neutral' as const, label: status || 'Pending' }
   }
 }
 
 const openOrderDetail = (order: Order) => {
   selectedOrder.value = order
   showDetailModal.value = true
+}
+
+const navigateToClient = (clientId: string) => {
+  showDetailModal.value = false
+  router.push(`/clients/${clientId}`)
 }
 </script>
 
@@ -193,14 +208,16 @@ const openOrderDetail = (order: Order) => {
                 </Badge>
               </td>
 
-              <td class="py-3.5 px-4 text-right" @click.stop>
-                <AppButton
-                  variant="secondary"
-                  size="sm"
-                  @click="openOrderDetail(order)"
+              <td class="py-3.5 px-4 text-right">
+                <button
+                  type="button"
+                  @click.stop="openOrderDetail(order)"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-ink-navy text-white hover:bg-ink-deep active:bg-ink shadow-xs transition-colors cursor-pointer"
+                  title="View order and invoice breakdown"
                 >
-                  View &rarr;
-                </AppButton>
+                  <span>View</span>
+                  <span>&rarr;</span>
+                </button>
               </td>
             </tr>
           </tbody>
@@ -269,9 +286,21 @@ const openOrderDetail = (order: Order) => {
       </div>
 
       <template #footer>
-        <AppButton variant="secondary" size="sm" @click="showDetailModal = false">
-          Close
-        </AppButton>
+        <div class="flex items-center justify-between w-full">
+          <AppButton
+            v-if="selectedOrder?.clientCompanyId"
+            variant="outline"
+            size="sm"
+            @click="navigateToClient(selectedOrder.clientCompanyId)"
+          >
+            Go to Client Profile &rarr;
+          </AppButton>
+          <div v-else></div>
+
+          <AppButton variant="secondary" size="sm" @click="showDetailModal = false">
+            Close
+          </AppButton>
+        </div>
       </template>
     </Modal>
   </PageContainer>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { getAdminApi } from '@/services/admin'
 import { useAccess } from '@/composables/useAccess'
 import { useToast } from '@/composables/useToast'
@@ -42,19 +42,25 @@ const fetchSubscriptions = async () => {
 
 onMounted(() => {
   fetchSubscriptions()
+  window.addEventListener('adadiko:refresh', fetchSubscriptions)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('adadiko:refresh', fetchSubscriptions)
 })
 
 const filteredSubscriptions = computed(() => {
   return subscriptions.value.filter((s) => {
-    const matchesStatus = selectedStatus.value === 'all' || s.status === selectedStatus.value
+    const matchesStatus = selectedStatus.value === 'all' || (s.status || '').toLowerCase() === selectedStatus.value
     const q = searchQuery.value.toLowerCase().trim()
     const matchesSearch = !q || s.clientCompanyName.toLowerCase().includes(q)
     return matchesStatus && matchesSearch
   })
 })
 
-const getStatusBadge = (status: Subscription['status']) => {
-  switch (status) {
+const getStatusBadge = (status?: string) => {
+  const s = (status || '').toLowerCase().trim()
+  switch (s) {
     case 'active':
       return { variant: 'success' as const, label: 'Active' }
     case 'expiring':
@@ -63,6 +69,8 @@ const getStatusBadge = (status: Subscription['status']) => {
       return { variant: 'danger' as const, label: 'Past Due' }
     case 'canceled':
       return { variant: 'neutral' as const, label: 'Canceled' }
+    default:
+      return { variant: 'neutral' as const, label: status || 'Active' }
   }
 }
 
@@ -76,7 +84,8 @@ const handleRenewSubscription = async () => {
   if (!selectedSub.value) return
   isRenewing.value = true
   try {
-    const res = await adminApi.renewSubscription(selectedSub.value.id, renewDuration.value)
+    const targetSlug = selectedSub.value.id || selectedSub.value.clientCompanyId
+    const res = await adminApi.renewSubscription(targetSlug, renewDuration.value)
     if (res.ok && res.data) {
       showToast({
         title: 'Subscription Renewed',
@@ -225,13 +234,15 @@ const handleRenewSubscription = async () => {
               </td>
 
               <td class="py-3.5 px-4 text-right" v-if="canRenewSubscriptions">
-                <AppButton
-                  variant="secondary"
-                  size="sm"
-                  @click="openRenewModal(sub)"
+                <button
+                  type="button"
+                  @click.stop="openRenewModal(sub)"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-ink-navy text-white hover:bg-ink-deep active:bg-ink shadow-xs transition-colors cursor-pointer"
+                  title="Extend subscription contract"
                 >
-                  Renew Contract &rarr;
-                </AppButton>
+                  <span>Renew Contract</span>
+                  <span>&rarr;</span>
+                </button>
               </td>
             </tr>
           </tbody>

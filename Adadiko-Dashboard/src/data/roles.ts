@@ -17,13 +17,13 @@ export const ROLE_DEFINITIONS: Record<StaffRole, RoleMeta> = {
     label: 'Adadiko Support',
     backendRole: 'Adadiko Support / Adadiko Staff',
     description: 'Read-only client company diagnostics, internal support notes, and activity audit logs.',
-    allowedRoutes: ['/overview', '/clients', '/logs'],
+    allowedRoutes: ['/overview', '/clients', '/logs', '/staff'],
   },
   billing: {
     key: 'billing',
     label: 'Adadiko Billing',
     backendRole: 'Adadiko Billing / Adadiko Staff',
     description: 'Financial oversight: customer orders, subscription renewals, and payment collection.',
-    allowedRoutes: ['/overview', '/orders', '/subscriptions'],
+    allowedRoutes: ['/overview', '/orders', '/subscriptions', '/staff'],
   },
 }

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getAdminApi } from '@/services/admin'
+import { useToast } from '@/composables/useToast'
 import type { AdminOverview, ClientCompany } from '@/types'
 import { formatCurrency, formatNumber } from '@/utils/format'
 import StatCard from '@/components/common/StatCard.vue'
@@ -9,6 +10,7 @@ import AppIcon from '@/components/common/AppIcon.vue'
 
 const router = useRouter()
 const adminApi = getAdminApi()
+const { showToast } = useToast()
 
 const overview = ref<AdminOverview | null>(null)
 const clients = ref<ClientCompany[]>([])
@@ -37,8 +39,22 @@ const fetchDashboardData = async () => {
   }
 }
 
+const handleManualRefresh = async () => {
+  await fetchDashboardData()
+  showToast({
+    title: 'Refreshed',
+    message: 'Dashboard telemetry and metrics updated.',
+    type: 'info',
+  })
+}
+
 onMounted(() => {
   fetchDashboardData()
+  window.addEventListener('adadiko:refresh', fetchDashboardData)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('adadiko:refresh', fetchDashboardData)
 })
 
 const totalSeats = computed(() => {
@@ -163,10 +179,12 @@ const navigateToClient = (clientId: string) => {
       <div class="flex items-center gap-2">
         <button
           type="button"
-          @click="fetchDashboardData"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-stone-surface border border-stone-border text-ink-muted hover:text-ink hover:border-signal transition-colors shadow-2xs"
+          @click="handleManualRefresh"
+          :disabled="loading"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-stone-surface border border-stone-border text-ink-muted hover:text-ink hover:border-signal transition-colors shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
+          title="Refresh dashboard metrics"
         >
-          <AppIcon name="refresh" :size="13" />
+          <AppIcon name="refresh" :size="13" :class="{ 'animate-spin text-signal': loading }" />
           <span>Refresh</span>
         </button>
       </div>

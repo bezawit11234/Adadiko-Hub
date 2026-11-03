@@ -1,25 +1,133 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useSession } from '@/composables/useSession'
 import { useAccess } from '@/composables/useAccess'
 import { useTheme } from '@/composables/useTheme'
+import { useToast } from '@/composables/useToast'
+import { getAdminApi } from '@/services/admin'
 import AppIcon from '@/components/common/AppIcon.vue'
 import type { StaffRole } from '@/types'
 
 const router = useRouter()
 const route = useRoute()
+const adminApi = getAdminApi()
+const { showToast } = useToast()
 const { currentUser, currentRole, currentRoleMeta, logout } = useSession()
 const { canAccessRoute } = useAccess()
 const { currentTheme, toggleTheme, initTheme } = useTheme()
 
-onMounted(() => {
-  initTheme()
-})
-
 // Search query in top bar
 const globalSearch = ref('')
 const mobileMenuOpen = ref(false)
+
+// Global refresh state
+const isRefreshing = ref(false)
+
+// Notifications state
+interface PlatformNotification {
+  id: string
+  title: string
+  message: string
+  type: 'warning' | 'info' | 'danger'
+  time: string
+  link?: string
+}
+
+const notificationsOpen = ref(false)
+const notifications = ref<PlatformNotification[]>([])
+const unreadCount = computed(() => notifications.value.length)
+
+const fetchNotifications = async () => {
+  try {
+    const res = await adminApi.getOverview()
+    if (res.ok && res.data) {
+      const list: PlatformNotification[] = []
+      const needs = res.data.needsAttention || []
+      needs.forEach((item) => {
+        let nType: 'warning' | 'info' | 'danger' = 'warning'
+        let title = 'Action Required'
+        let msg = item.clientName
+
+        if (item.type === 'overdue_payment') {
+          nType = 'danger'
+          title = 'Overdue Payment'
+          msg = `${item.clientName} payment is overdue ($${item.amount || 0})`
+        } else if (item.type === 'expiring_trial') {
+          nType = 'warning'
+          title = 'Expiring Trial'
+          msg = `${item.clientName} trial expires in ${item.daysRemaining ?? 'few'} days`
+        } else if (item.type === 'expiring_plan') {
+          nType = 'info'
+          title = 'Contract Renewal Due'
+          msg = `${item.clientName} subscription renewal is due`
+        }
+
+        list.push({
+          id: item.id || `${item.clientId}-${item.type}`,
+          title,
+          message: msg,
+          type: nType,
+          time: item.dueDate || 'Pending',
+          link: `/clients/${item.clientId}`,
+        })
+      })
+
+      notifications.value = list
+    }
+  } catch {
+    // keep current notifications
+  }
+}
+
+const handleGlobalRefresh = async () => {
+  if (isRefreshing.value) return
+  isRefreshing.value = true
+  try {
+    // Notify all active route components
+    window.dispatchEvent(new CustomEvent('adadiko:refresh'))
+    await fetchNotifications()
+    showToast({
+      title: 'Refreshed',
+      message: 'Platform telemetry and active workspace data reloaded.',
+      type: 'info',
+    })
+  } finally {
+    setTimeout(() => {
+      isRefreshing.value = false
+    }, 600)
+  }
+}
+
+const handleNotificationClick = (n: PlatformNotification) => {
+  notificationsOpen.value = false
+  if (n.link) {
+    router.push(n.link)
+  }
+}
+
+const clearNotifications = () => {
+  notifications.value = []
+  showToast({ title: 'Cleared', message: 'All notifications marked as read.', type: 'info' })
+}
+
+// Close notifications popover on click outside
+const closeOnClickOutside = (e: MouseEvent) => {
+  const target = e.target as HTMLElement
+  if (!target.closest('#notification-bell-container')) {
+    notificationsOpen.value = false
+  }
+}
+
+onMounted(() => {
+  initTheme()
+  fetchNotifications()
+  window.addEventListener('click', closeOnClickOutside)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', closeOnClickOutside)
+})
 
 interface NavItem {
   name: string
@@ -35,7 +143,7 @@ const allNavItems: NavItem[] = [
   { name: 'Subscriptions', path: '/subscriptions', icon: 'receipt', roles: ['admin', 'billing'] },
   { name: 'Catalog', path: '/catalog', icon: 'catalog', roles: ['admin'] },
   { name: 'Audit Logs', path: '/logs', icon: 'file-text', roles: ['admin', 'support'] },
-  { name: 'Staff Team', path: '/staff', icon: 'users', roles: ['admin'] },
+  { name: 'Staff Team', path: '/staff', icon: 'users', roles: ['admin', 'support', 'billing'] },
 ]
 
 const visibleNavItems = computed(() => {
@@ -191,6 +299,18 @@ const handleGlobalSearch = () => {
               </button>
             </div>
 
+            <!-- Global Refresh Button -->
+            <button
+              type="button"
+              @click="handleGlobalRefresh"
+              class="w-8 h-8 rounded-full bg-stone-surface border border-stone-border flex items-center justify-center text-ink-muted hover:text-ink shadow-2xs cursor-pointer transition-colors"
+              :disabled="isRefreshing"
+              aria-label="Refresh platform data"
+              title="Refresh live platform telemetry"
+            >
+              <AppIcon name="refresh" :size="14" :class="{ 'animate-spin text-signal': isRefreshing }" />
+            </button>
+
             <!-- Theme Sun / Moon Toggle Button -->
             <button
               type="button"
@@ -215,9 +335,97 @@ const handleGlobalSearch = () => {
               </svg>
             </button>
 
-            <!-- Notification Bell Icon -->
-            <div class="w-8 h-8 rounded-full bg-stone-surface border border-stone-border flex items-center justify-center text-ink-muted hover:text-ink shadow-2xs cursor-pointer">
-              <AppIcon name="bell" :size="15" />
+            <!-- Notification Bell Icon & Dropdown -->
+            <div id="notification-bell-container" class="relative">
+              <button
+                type="button"
+                @click.stop="notificationsOpen = !notificationsOpen"
+                class="w-8 h-8 rounded-full bg-stone-surface border border-stone-border flex items-center justify-center text-ink-muted hover:text-ink shadow-2xs cursor-pointer transition-colors relative"
+                aria-label="Toggle notifications"
+                title="Notifications &amp; Alerts"
+              >
+                <AppIcon name="bell" :size="15" />
+                <span
+                  v-if="unreadCount > 0"
+                  class="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-status-red text-white text-[10px] font-bold flex items-center justify-center shadow-xs animate-pulse"
+                >
+                  {{ unreadCount > 9 ? '9+' : unreadCount }}
+                </span>
+              </button>
+
+              <!-- Notifications Popover Card -->
+              <div
+                v-if="notificationsOpen"
+                class="absolute right-0 mt-2 w-80 sm:w-96 bg-stone-surface rounded-2xl border border-stone-border shadow-modal z-50 overflow-hidden"
+              >
+                <div class="p-3.5 border-b border-stone-border flex items-center justify-between bg-stone-subtle/70">
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-xs text-ink font-heading">System Notifications</span>
+                    <span
+                      v-if="unreadCount > 0"
+                      class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-signal-subtle text-signal"
+                    >
+                      {{ unreadCount }} new
+                    </span>
+                  </div>
+                  <button
+                    v-if="unreadCount > 0"
+                    type="button"
+                    @click="clearNotifications"
+                    class="text-[11px] text-ink-muted hover:text-signal transition-colors font-medium"
+                  >
+                    Mark all read
+                  </button>
+                </div>
+
+                <!-- Notifications List -->
+                <div class="max-h-72 overflow-y-auto divide-y divide-stone-border text-xs">
+                  <div
+                    v-if="notifications.length === 0"
+                    class="p-6 text-center text-ink-muted"
+                  >
+                    <div class="w-8 h-8 rounded-full bg-stone-subtle mx-auto mb-2 flex items-center justify-center text-ink-muted">
+                      <AppIcon name="bell" :size="14" />
+                    </div>
+                    <p class="font-semibold text-ink text-xs">No pending notifications</p>
+                    <p class="text-[11px] text-ink-muted mt-0.5">All platform operations and tenant accounts are nominal.</p>
+                  </div>
+
+                  <div
+                    v-for="n in notifications"
+                    :key="n.id"
+                    @click="handleNotificationClick(n)"
+                    class="p-3 hover:bg-stone-subtle/80 transition-colors cursor-pointer flex items-start gap-3"
+                  >
+                    <div
+                      class="w-2 h-2 rounded-full mt-1.5 shrink-0"
+                      :class="
+                        n.type === 'danger'
+                          ? 'bg-status-red'
+                          : n.type === 'warning'
+                          ? 'bg-status-amber'
+                          : 'bg-signal'
+                      "
+                    ></div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-semibold text-ink text-xs truncate">{{ n.title }}</div>
+                      <p class="text-ink-muted text-[11px] mt-0.5 leading-snug line-clamp-2">{{ n.message }}</p>
+                      <div class="text-[10px] font-mono text-ink-muted mt-1">{{ n.time }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Footer link to Activity Logs -->
+                <div class="p-2 border-t border-stone-border bg-stone-subtle/50 text-center">
+                  <router-link
+                    to="/logs"
+                    @click="notificationsOpen = false"
+                    class="text-[11px] font-medium text-signal hover:underline inline-flex items-center gap-1"
+                  >
+                    View platform activity logs &rarr;
+                  </router-link>
+                </div>
+              </div>
             </div>
           </div>
         </header>

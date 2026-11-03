@@ -11,6 +11,7 @@ import type {
   Subscription,
   LogEntry,
   StaffUser,
+  StaffRole,
   AdminOverview,
   Plan,
   ApiResult,
@@ -32,6 +33,8 @@ export interface AdminApi {
   getOverview(): Promise<ApiResult<AdminOverview>>
   listStaff(): Promise<ApiResult<StaffUser[]>>
   inviteStaff(staff: Omit<StaffUser, 'id'>): Promise<ApiResult<StaffUser>>
+  updateStaff(email: string, full_name: string, role: StaffRole): Promise<ApiResult<StaffUser>>
+  deleteStaff(email: string): Promise<ApiResult<{ success: boolean; email: string }>>
 }
 
 export class PlatformAdminApi implements AdminApi {
@@ -222,6 +225,34 @@ export class PlatformAdminApi implements AdminApi {
       }
     } catch (err: any) {
       return { ok: false, error: err.message || 'Failed to invite staff.' }
+    }
+  }
+
+  async updateStaff(email: string, full_name: string, role: StaffRole): Promise<ApiResult<StaffUser>> {
+    try {
+      const res = await platformRequest<any>('/api/method/adadiko_hub.admin_api.update_staff', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          full_name,
+          role,
+        }),
+      })
+      return { ok: true, data: res }
+    } catch (err: any) {
+      return { ok: false, error: err.message || 'Failed to update staff member.' }
+    }
+  }
+
+  async deleteStaff(email: string): Promise<ApiResult<{ success: boolean; email: string }>> {
+    try {
+      const res = await platformRequest<any>('/api/method/adadiko_hub.admin_api.delete_staff', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      })
+      return { ok: true, data: res }
+    } catch (err: any) {
+      return { ok: false, error: err.message || 'Failed to delete staff member.' }
     }
   }
 }

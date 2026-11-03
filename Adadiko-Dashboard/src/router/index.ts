@@ -76,7 +76,7 @@ const routes: RouteRecordRaw[] = [
         path: '/staff',
         name: 'Staff',
         component: () => import('@/pages/StaffPage.vue'),
-        meta: { roles: ['admin'], title: 'Staff Management' },
+        meta: { roles: ['admin', 'support', 'billing'], title: 'Staff Management' },
       },
       {
         path: '/no-access',

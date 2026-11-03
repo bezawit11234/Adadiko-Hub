@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { getAdminApi } from '@/services/admin'
 import type { ClientCompany } from '@/types'
@@ -45,6 +45,11 @@ onMounted(() => {
   // Always default to 'all' status on visit
   selectedStatus.value = 'all'
   fetchClients()
+  window.addEventListener('adadiko:refresh', fetchClients)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('adadiko:refresh', fetchClients)
 })
 
 const clearFilters = () => {
