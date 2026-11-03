@@ -4,9 +4,10 @@ import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { getSalesApi } from '@/services/sales'
 import { useToast } from '@/composables/useToast'
 import { useSession } from '@/composables/useSession'
-import type { Customer, OrderItem } from '@/types'
+import type { Customer, OrderItem, Lead } from '@/types'
 import AppButton from '@/components/common/AppButton.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
+import Badge from '@/components/common/Badge.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import SectionHeading from '@/components/common/SectionHeading.vue'
 import Field from '@/components/common/Field.vue'
@@ -40,12 +41,17 @@ const toast = useToast()
 const { currentUser } = useSession()
 
 const customers = ref<Customer[]>([])
+const leads = ref<Lead[]>([])
 const availableItems = ref<CatalogItem[]>([])
 const loadingData = ref(true)
 const submitting = ref(false)
 
 // Form fields
+const partyType = ref<'Customer' | 'Lead'>('Customer')
 const selectedCustomerId = ref<string>('')
+const selectedLeadId = ref<string>('')
+const isCustomerLocked = computed(() => Boolean(route.query.customer))
+const isLeadLocked = computed(() => Boolean(route.query.lead))
 const quoteDate = ref(new Date().toISOString().split('T')[0])
 const validTill = ref(
   new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -77,19 +83,30 @@ const creatingCustomer = ref(false)
 onMounted(async () => {
   loadingData.value = true
   try {
-    const [custRes, itemsRes] = await Promise.all([
+    const [custRes, itemsRes, leadsRes] = await Promise.all([
       salesApi.listCustomers(),
       salesApi.listItems(),
+      salesApi.listLeads(),
     ])
 
     if (custRes.ok && custRes.data) {
       customers.value = custRes.data
-      const queryCust = route.query.customer as string
-      if (queryCust) {
-        selectedCustomerId.value = queryCust
-      } else if (customers.value.length > 0) {
-        selectedCustomerId.value = customers.value[0].id
-      }
+    }
+    if (leadsRes.ok && leadsRes.data) {
+      leads.value = leadsRes.data
+    }
+
+    const queryLead = route.query.lead as string
+    const queryCust = route.query.customer as string
+
+    if (queryLead) {
+      partyType.value = 'Lead'
+      selectedLeadId.value = queryLead
+    } else if (queryCust) {
+      partyType.value = 'Customer'
+      selectedCustomerId.value = queryCust
+    } else if (customers.value.length > 0) {
+      selectedCustomerId.value = customers.value[0].id
     }
 
     if (itemsRes.ok && itemsRes.data && itemsRes.data.length > 0) {
@@ -114,6 +131,18 @@ onMounted(async () => {
 
 const selectedCustomer = computed(() => {
   return customers.value.find((c) => c.id === selectedCustomerId.value)
+})
+
+const selectedLead = computed(() => {
+  return leads.value.find((l) => l.id === selectedLeadId.value)
+})
+
+const selectedPartyName = computed(() => {
+  if (partyType.value === 'Customer') {
+    return selectedCustomer.value?.name || selectedCustomerId.value || 'Customer'
+  } else {
+    return selectedLead.value?.companyName || selectedLead.value?.name || selectedLeadId.value || 'Lead'
+  }
 })
 
 function addItemRow() {
@@ -211,8 +240,9 @@ const grandTotal = computed(() => {
 })
 
 async function handleSubmitQuotation() {
-  if (!selectedCustomerId.value) {
-    toast.error('Validation Error', 'Please select or register a customer for this quotation.')
+  const partyId = partyType.value === 'Customer' ? selectedCustomerId.value : selectedLeadId.value
+  if (!partyId) {
+    toast.error('Validation Error', `Please select or register a ${partyType.value} for this quotation.`)
     return
   }
   if (itemRows.value.length === 0 || subtotal.value <= 0) {
@@ -234,8 +264,11 @@ async function handleSubmitQuotation() {
     }))
 
     const res = await salesApi.createQuotation({
-      customerName: selectedCustomer.value?.name || 'Customer',
-      customerId: selectedCustomerId.value,
+      customerName: selectedPartyName.value,
+      customerId: partyId,
+      partyType: partyType.value,
+      partyName: selectedPartyName.value,
+      leadId: partyType.value === 'Lead' ? selectedLeadId.value : undefined,
       date: quoteDate.value,
       validTill: validTill.value,
       items: itemsPayload,
@@ -271,24 +304,44 @@ async function handleSubmitQuotation() {
 
     <SectionHeading
       title="Create Commercial Quotation"
-      description="Draft and generate a formal commercial quote for a prospect or existing customer."
+      description="Draft and generate a formal commercial quote for a prospect (Lead) or existing customer."
     />
 
     <form class="space-y-6" @submit.prevent="handleSubmitQuotation">
       <!-- SECTION 1: ESSENTIALS -->
       <div class="bg-white rounded-3xl border border-stone-border shadow-soft p-6 sm:p-8 space-y-6">
-        <h2 class="text-base font-bold text-ink font-heading pb-2 border-b border-stone-border">
-          1. Customer & Validity Window
-        </h2>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-stone-border">
+          <h2 class="text-base font-bold text-ink font-heading">
+            1. Party & Validity Window
+          </h2>
+          <!-- Party Type Toggle -->
+          <div class="inline-flex rounded-xl bg-stone-bg p-1 border border-stone-border text-xs font-bold">
+            <button
+              type="button"
+              :class="['px-3 py-1 rounded-lg transition-colors', partyType === 'Customer' ? 'bg-ink-navy text-white' : 'text-ink-muted hover:text-ink']"
+              @click="partyType = 'Customer'"
+            >
+              Customer
+            </button>
+            <button
+              type="button"
+              :class="['px-3 py-1 rounded-lg transition-colors', partyType === 'Lead' ? 'bg-ink-navy text-white' : 'text-ink-muted hover:text-ink']"
+              @click="partyType = 'Lead'"
+            >
+              Lead (Prospect)
+            </button>
+          </div>
+        </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <!-- Customer Selection with Quick-Add -->
+          <!-- Customer / Lead Selection with Quick-Add -->
           <div class="sm:col-span-1">
             <div class="flex items-center justify-between mb-1.5">
               <label class="block text-xs font-bold text-ink">
-                Customer <span class="text-signal">*</span>
+                {{ partyType === 'Customer' ? 'Customer' : 'Lead (Prospect)' }} <span class="text-signal">*</span>
               </label>
               <button
+                v-if="partyType === 'Customer'"
                 type="button"
                 class="text-xs text-signal hover:underline font-semibold flex items-center gap-1"
                 @click="isCustomerModalOpen = true"
@@ -296,31 +349,75 @@ async function handleSubmitQuotation() {
                 <AppIcon name="plus" :size="12" />
                 <span>Add New</span>
               </button>
-            </div>
-
-            <select
-              v-if="customers.length > 0"
-              v-model="selectedCustomerId"
-              class="block w-full rounded-xl border border-stone-border bg-white px-3.5 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-signal/20 focus:border-signal"
-            >
-              <option v-for="c in customers" :key="c.id" :value="c.id">
-                {{ c.name }}
-              </option>
-            </select>
-
-            <div
-              v-else
-              class="p-3 rounded-xl bg-stone-bg border border-stone-border flex items-center justify-between text-xs"
-            >
-              <span class="text-ink-muted">No customers yet.</span>
-              <button
-                type="button"
-                class="px-2.5 py-1 bg-signal text-white rounded-lg font-bold text-xs"
-                @click="isCustomerModalOpen = true"
+              <RouterLink
+                v-else
+                to="/app/sales/leads"
+                class="text-xs text-signal hover:underline font-semibold flex items-center gap-1"
               >
-                + Register
-              </button>
+                <AppIcon name="plus" :size="12" />
+                <span>New Lead</span>
+              </RouterLink>
             </div>
+
+            <!-- Customer Picker -->
+            <template v-if="partyType === 'Customer'">
+              <div v-if="isCustomerLocked" class="p-2.5 rounded-xl bg-stone-bg border border-stone-border text-xs font-bold text-ink flex items-center justify-between">
+                <span>{{ selectedPartyName }}</span>
+                <Badge variant="neutral" size="sm">Locked</Badge>
+              </div>
+              <select
+                v-else-if="customers.length > 0"
+                v-model="selectedCustomerId"
+                class="block w-full rounded-xl border border-stone-border bg-white px-3.5 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-signal/20 focus:border-signal"
+              >
+                <option v-for="c in customers" :key="c.id" :value="c.id">
+                  {{ c.name }}
+                </option>
+              </select>
+              <div
+                v-else
+                class="p-3 rounded-xl bg-stone-bg border border-stone-border flex items-center justify-between text-xs"
+              >
+                <span class="text-ink-muted">No customers yet.</span>
+                <button
+                  type="button"
+                  class="px-2.5 py-1 bg-signal text-white rounded-lg font-bold text-xs"
+                  @click="isCustomerModalOpen = true"
+                >
+                  + Register
+                </button>
+              </div>
+            </template>
+
+            <!-- Lead Picker -->
+            <template v-else>
+              <div v-if="isLeadLocked" class="p-2.5 rounded-xl bg-stone-bg border border-stone-border text-xs font-bold text-ink flex items-center justify-between">
+                <span>{{ selectedPartyName }}</span>
+                <Badge variant="neutral" size="sm">Locked</Badge>
+              </div>
+              <select
+                v-else-if="leads.length > 0"
+                v-model="selectedLeadId"
+                class="block w-full rounded-xl border border-stone-border bg-white px-3.5 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-signal/20 focus:border-signal"
+              >
+                <option value="" disabled>Select a lead...</option>
+                <option v-for="l in leads" :key="l.id" :value="l.id">
+                  {{ l.companyName ? `${l.companyName} (${l.name})` : l.name }}
+                </option>
+              </select>
+              <div
+                v-else
+                class="p-3 rounded-xl bg-stone-bg border border-stone-border flex items-center justify-between text-xs"
+              >
+                <span class="text-ink-muted">No leads available.</span>
+                <RouterLink
+                  to="/app/sales/leads"
+                  class="px-2.5 py-1 bg-signal text-white rounded-lg font-bold text-xs"
+                >
+                  + Create Lead
+                </RouterLink>
+              </div>
+            </template>
           </div>
 
           <!-- Quotation Date -->

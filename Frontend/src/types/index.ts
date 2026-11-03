@@ -100,6 +100,7 @@ export interface Customer {
   territory: string
   group: string
   status: 'Active' | 'Prospect' | 'Inactive'
+  customerType?: 'Company' | 'Individual'
   amountOwed: number      // ERPNext: outstanding_amount
   assignedTo: string      // User ID or Sales Rep name (for ownership filters)
   address?: string
@@ -128,6 +129,10 @@ export interface Quotation {
   id: string
   customerName: string
   customerId: string
+  partyType?: 'Customer' | 'Lead'
+  partyName?: string
+  leadId?: string
+  opportunityId?: string
   date: string
   validTill: string
   items: OrderItem[]
@@ -160,6 +165,13 @@ export interface SalesOrder {
   deliveryNoteId?: string
   invoiceId?: string
   quotationId?: string
+  opportunityId?: string
+  leadId?: string
+  paymentId?: string
+  advancePaymentId?: string
+  advancePaid?: number
+  hasStockItems?: boolean
+  allNonStock?: boolean
   assignedTo: string
   notes?: string
 }
@@ -201,13 +213,17 @@ export interface SalesInvoice {
 // ERPNext fields: name, payment_type, party_type, party, paid_amount, reference_no, reference_date, mode_of_payment
 export interface Payment {
   id: string
-  invoiceId: string
+  invoiceId?: string
+  salesOrderId?: string
   customerName: string
   amount: number
   date: string
+  postingDate?: string
   modeOfPayment: 'Bank Transfer' | 'Credit Card' | 'Cheque' | 'Cash'
+  mode?: 'Bank Transfer' | 'Credit Card' | 'Cheque' | 'Cash'
   referenceNo: string
   receivedBy: string
+  reconciled?: boolean
   notes?: string
 }
 

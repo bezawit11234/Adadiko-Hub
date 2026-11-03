@@ -28,8 +28,10 @@ const activeFilter = ref<'all' | 'has_debt' | 'active' | 'prospect'>('all')
 // New Customer Modal State
 const isNewModalOpen = ref(false)
 const newName = ref('')
+const newCustomerType = ref<'Company' | 'Individual'>('Company')
 const newEmail = ref('')
 const newPhone = ref('')
+const newAddress = ref('')
 const newTerritory = ref('All Territories')
 const newGroup = ref('Commercial')
 const newNotes = ref('')
@@ -95,8 +97,10 @@ async function handleCreateCustomer() {
   try {
     const res = await salesApi.createCustomer({
       name: newName.value.trim(),
+      customerType: newCustomerType.value,
       email: newEmail.value.trim() || 'info@customer.example',
       phone: newPhone.value.trim() || '+254 700 000000',
+      address: newAddress.value.trim(),
       territory: newTerritory.value.trim() || 'All Territories',
       group: newGroup.value.trim() || 'Commercial',
       status: 'Active',
@@ -109,8 +113,10 @@ async function handleCreateCustomer() {
       toast.success('Customer Created', `${res.data.name} has been added to customer directory.`)
       isNewModalOpen.value = false
       newName.value = ''
+      newCustomerType.value = 'Company'
       newEmail.value = ''
       newPhone.value = ''
+      newAddress.value = ''
       newTerritory.value = 'All Territories'
       newGroup.value = 'Commercial'
       newNotes.value = ''
@@ -247,9 +253,24 @@ async function handleCreateCustomer() {
       @close="isNewModalOpen = false"
     >
       <div class="space-y-4 text-xs">
-        <Field label="Customer or Company Name" required>
-          <TextField v-model="newName" placeholder="e.g. Serengeti Agro Mills Ltd" />
-        </Field>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="col-span-2">
+            <Field label="Customer or Company Name" required>
+              <TextField v-model="newName" placeholder="e.g. Serengeti Agro Mills Ltd" />
+            </Field>
+          </div>
+          <div>
+            <Field label="Type" required>
+              <select
+                v-model="newCustomerType"
+                class="w-full rounded-xl border border-stone-border bg-white px-3 py-2 text-xs font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-signal/20 focus:border-signal"
+              >
+                <option value="Company">Company</option>
+                <option value="Individual">Individual</option>
+              </select>
+            </Field>
+          </div>
+        </div>
 
         <div class="grid grid-cols-2 gap-3">
           <Field label="Email Address">
@@ -259,6 +280,10 @@ async function handleCreateCustomer() {
             <TextField v-model="newPhone" placeholder="+254 700 000 000" />
           </Field>
         </div>
+
+        <Field label="Physical Address / Location">
+          <TextField v-model="newAddress" placeholder="e.g. Plot 42 Industrial Area, Nairobi" />
+        </Field>
 
         <div class="grid grid-cols-2 gap-3">
           <Field label="Sales Territory">

@@ -37,7 +37,9 @@ const router = useRouter()
 const route = useRoute()
 const salesApi = getSalesApi()
 const toast = useToast()
-const { currentUser } = useSession()
+const { currentUser, currentRole } = useSession()
+const canCreateItem = computed(() => ['admin', 'manager', 'sales_manager'].includes(currentRole.value))
+const isCustomerLocked = computed(() => Boolean(route.query.customer))
 
 const customers = ref<Customer[]>([])
 const availableItems = ref<CatalogItem[]>([])
@@ -74,6 +76,58 @@ const quickCustomerPhone = ref('')
 const quickCustomerTerritory = ref('All Territories')
 const quickCustomerGroup = ref('Commercial')
 const creatingCustomer = ref(false)
+
+// New Item Modal
+const isItemModalOpen = ref(false)
+const newItemCode = ref('')
+const newItemName = ref('')
+const newIsStockItem = ref(true)
+const newItemRate = ref(100)
+const newOpeningStock = ref(10)
+const creatingItem = ref(false)
+
+async function handleCreateNewItem() {
+  if (!newItemCode.value.trim() || !newItemName.value.trim()) {
+    toast.error('Validation error', 'Please provide item code and item name.')
+    return
+  }
+  creatingItem.value = true
+  try {
+    const res = await salesApi.createItem({
+      itemCode: newItemCode.value.trim().toUpperCase(),
+      itemName: newItemName.value.trim(),
+      rate: Number(newItemRate.value) || 0,
+      isStockItem: newIsStockItem.value,
+      openingStock: newIsStockItem.value ? Number(newOpeningStock.value) || 0 : 0,
+    })
+    if (res.ok && res.data) {
+      toast.success('Item Created', `${res.data.itemName} registered in catalog!`)
+      availableItems.value.unshift({
+        itemCode: res.data.itemCode,
+        itemName: res.data.itemName,
+        rate: res.data.rate,
+        stockAvailable: res.data.stockAvailable,
+        warehouse: res.data.warehouse,
+      })
+      if (itemRows.value.length > 0) {
+        const target = itemRows.value[itemRows.value.length - 1]
+        target.itemCode = res.data.itemCode
+        target.itemName = res.data.itemName
+        target.rate = res.data.rate
+        target.stockAvailable = res.data.stockAvailable
+        target.isCustom = false
+      }
+      isItemModalOpen.value = false
+      newItemCode.value = ''
+      newItemName.value = ''
+      newOpeningStock.value = 10
+    } else {
+      toast.error('Item creation failed', res.error)
+    }
+  } finally {
+    creatingItem.value = false
+  }
+}
 
 onMounted(async () => {
   loadingData.value = true
@@ -249,8 +303,8 @@ async function handleSubmitOrder() {
 
     if (res.ok && res.data) {
       toast.success(
-        'Sales Order Created!',
-        `Order ${res.data.id} has been registered.`
+        'Draft Sales Order Created!',
+        `Order ${res.data.id} has been saved as Draft. Ready for Sales Manager review.`
       )
       router.push(`/app/sales/orders/${res.data.id}`)
     } else {
@@ -290,6 +344,7 @@ async function handleSubmitOrder() {
                 Customer Account <span class="text-signal">*</span>
               </label>
               <button
+                v-if="!isCustomerLocked"
                 type="button"
                 class="text-xs text-signal hover:underline font-semibold flex items-center gap-1"
                 @click="isCustomerModalOpen = true"
@@ -299,8 +354,14 @@ async function handleSubmitOrder() {
               </button>
             </div>
 
+            <!-- Customer locked when navigated from customer detail -->
+            <div v-if="isCustomerLocked" class="p-3 rounded-xl bg-stone-bg border border-stone-border text-xs font-bold text-ink flex items-center justify-between">
+              <span>{{ selectedCustomer?.name || selectedCustomerId }}</span>
+              <Badge variant="neutral" size="sm">Customer Locked</Badge>
+            </div>
+
             <select
-              v-if="customers.length > 0"
+              v-else-if="customers.length > 0"
               v-model="selectedCustomerId"
               class="block w-full rounded-xl border border-stone-border bg-white px-3.5 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-signal/20 focus:border-signal"
             >
@@ -352,12 +413,24 @@ async function handleSubmitOrder() {
             <h2 class="text-base font-bold text-ink font-heading">
               2. Order Line Items
             </h2>
-            <p class="text-xs text-ink-muted">Select catalog items or enter custom line items, quantities, and rates</p>
+            <p class="text-xs text-ink-muted">Select catalog items with live stock, quantities, and rates</p>
           </div>
-          <AppButton variant="outline" size="sm" type="button" @click="addItemRow">
-            <AppIcon name="plus" :size="14" />
-            <span>Add Item Row</span>
-          </AppButton>
+          <div class="flex items-center gap-2">
+            <AppButton
+              v-if="canCreateItem"
+              variant="outline"
+              size="sm"
+              type="button"
+              @click="isItemModalOpen = true"
+            >
+              <AppIcon name="plus" :size="14" />
+              <span>+ New Item</span>
+            </AppButton>
+            <AppButton variant="secondary" size="sm" type="button" @click="addItemRow">
+              <AppIcon name="plus" :size="14" />
+              <span>Add Row</span>
+            </AppButton>
+          </div>
         </div>
 
         <div class="space-y-4">
@@ -374,29 +447,25 @@ async function handleSubmitOrder() {
                     Product / Item #{{ idx + 1 }}
                   </label>
                   <button
+                    v-if="canCreateItem"
                     type="button"
-                    class="text-[11px] text-signal hover:underline"
-                    @click="row.isCustom = !row.isCustom"
+                    class="text-[11px] text-signal hover:underline font-semibold"
+                    @click="isItemModalOpen = true"
                   >
-                    {{ row.isCustom ? 'Pick from catalog' : 'Enter custom item' }}
+                    + Create New Item
                   </button>
                 </div>
 
-                <div v-if="!row.isCustom">
+                <div>
                   <select
                     :value="row.itemCode"
                     class="block w-full rounded-xl border border-stone-border bg-white px-3 py-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-signal/20 focus:border-signal"
                     @change="onItemSelect(row, ($event.target as HTMLSelectElement).value)"
                   >
                     <option v-for="catItem in availableItems" :key="catItem.itemCode" :value="catItem.itemCode">
-                      {{ catItem.itemName }} ({{ catItem.itemCode }}) — {{ formatCurrency(catItem.rate) }}
+                      {{ catItem.itemName }} ({{ catItem.itemCode }}) — Stock: {{ catItem.stockAvailable }} — {{ formatCurrency(catItem.rate) }}
                     </option>
-                    <option value="__custom__">+ Enter custom item...</option>
                   </select>
-                </div>
-                <div v-else class="grid grid-cols-2 gap-2">
-                  <TextField v-model="row.itemCode" placeholder="Code (e.g. PROD-101)" />
-                  <TextField v-model="row.itemName" placeholder="Item Name" />
                 </div>
               </div>
 
@@ -552,6 +621,56 @@ async function handleSubmitOrder() {
           @click="handleCreateQuickCustomer"
         >
           Save & Select Customer
+        </AppButton>
+      </template>
+    </Modal>
+
+    <!-- Modal: New Item (Manager & Admin) -->
+    <Modal
+      :is-open="isItemModalOpen"
+      title="Create New Inventory Item"
+      subtitle="Register an item with Maintain Stock, pricing, and opening warehouse stock receipt."
+      max-width="md"
+      @close="isItemModalOpen = false"
+    >
+      <div class="space-y-4 text-xs">
+        <Field label="Item Code" required hint="Unique alphanumeric code (e.g. SOLAR-MOD-01)">
+          <TextField v-model="newItemCode" placeholder="SOLAR-MOD-01" />
+        </Field>
+
+        <Field label="Item Name / Description" required>
+          <TextField v-model="newItemName" placeholder="High-efficiency Solar Module" />
+        </Field>
+
+        <div class="p-3 rounded-xl bg-stone-bg border border-stone-border flex items-center justify-between">
+          <div>
+            <span class="font-bold text-ink block">Maintain Stock</span>
+            <span class="text-[11px] text-ink-muted">Track quantities in warehouse inventory ledger</span>
+          </div>
+          <input
+            v-model="newIsStockItem"
+            type="checkbox"
+            class="w-4 h-4 text-signal rounded border-stone-border focus:ring-signal"
+          />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <Field label="Standard Selling Rate" required>
+            <TextField v-model="newItemRate" type="number" step="0.01" />
+          </Field>
+
+          <Field v-if="newIsStockItem" label="Opening Stock (Material Receipt)" hint="Initial warehouse quantity">
+            <TextField v-model="newOpeningStock" type="number" min="0" />
+          </Field>
+        </div>
+      </div>
+
+      <template #footer>
+        <AppButton variant="ghost" size="sm" @click="isItemModalOpen = false">
+          Cancel
+        </AppButton>
+        <AppButton variant="primary" size="sm" :loading="creatingItem" @click="handleCreateNewItem">
+          Create Item & Receive Stock
         </AppButton>
       </template>
     </Modal>

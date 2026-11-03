@@ -75,7 +75,7 @@ const filteredPayments = computed(() => {
         p.id.toLowerCase().includes(q) ||
         p.customerName.toLowerCase().includes(q) ||
         p.referenceNo.toLowerCase().includes(q) ||
-        p.invoiceId.toLowerCase().includes(q)
+        (p.invoiceId && p.invoiceId.toLowerCase().includes(q))
     )
   }
 

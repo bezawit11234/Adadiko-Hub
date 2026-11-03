@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { getSalesApi } from '@/services/sales'
+import { useSession } from '@/composables/useSession'
 import type { SalesOrder } from '@/types'
 import AppButton from '@/components/common/AppButton.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
@@ -10,16 +11,17 @@ import PageContainer from '@/components/common/PageContainer.vue'
 import SectionHeading from '@/components/common/SectionHeading.vue'
 import DataTable, { type Column } from '@/components/common/DataTable.vue'
 import TextField from '@/components/common/TextField.vue'
-import SampleNotice from '@/components/common/SampleNotice.vue'
 import { formatCurrency, formatDate } from '@/utils/format'
 
 const router = useRouter()
 const salesApi = getSalesApi()
+const { currentUser, currentRole } = useSession()
+const isRep = computed(() => currentRole.value === 'sales_rep')
 
 const orders = ref<SalesOrder[]>([])
 const loading = ref(true)
 const search = ref('')
-const activeFilter = ref<'all' | 'to_deliver' | 'to_bill' | 'completed'>('all')
+const activeFilter = ref<'all' | 'draft' | 'to_deliver_and_bill' | 'to_deliver' | 'to_bill' | 'completed' | 'cancelled'>('all')
 
 const columns: Column[] = [
   { key: 'id', label: 'Order #' },
@@ -49,6 +51,14 @@ onMounted(() => {
 
 const filteredOrders = computed(() => {
   let list = orders.value
+
+  // Sales rep sees own orders
+  if (isRep.value && currentUser.value) {
+    const uid = currentUser.value.id
+    const uemail = currentUser.value.email
+    list = list.filter((o) => !o.assignedTo || o.assignedTo === uid || o.assignedTo === uemail)
+  }
+
   const q = search.value.trim().toLowerCase()
   if (q) {
     list = list.filter(
@@ -58,12 +68,18 @@ const filteredOrders = computed(() => {
     )
   }
 
-  if (activeFilter.value === 'to_deliver') {
-    list = list.filter((o) => o.deliveryStatus === 'Not Delivered')
+  if (activeFilter.value === 'draft') {
+    list = list.filter((o) => o.status === 'Draft')
+  } else if (activeFilter.value === 'to_deliver_and_bill') {
+    list = list.filter((o) => o.status === 'To Deliver and Bill')
+  } else if (activeFilter.value === 'to_deliver') {
+    list = list.filter((o) => o.status === 'To Deliver' || (o.deliveryStatus === 'Not Delivered' && o.status !== 'Draft'))
   } else if (activeFilter.value === 'to_bill') {
-    list = list.filter((o) => o.billingStatus !== 'Paid' && o.deliveryStatus === 'Fully Delivered')
+    list = list.filter((o) => o.status === 'To Bill' || (o.billingStatus !== 'Paid' && o.deliveryStatus === 'Fully Delivered'))
   } else if (activeFilter.value === 'completed') {
-    list = list.filter((o) => o.status === 'Completed')
+    list = list.filter((o) => o.status === 'Completed' || o.billingStatus === 'Paid')
+  } else if (activeFilter.value === 'cancelled') {
+    list = list.filter((o) => o.status === 'Cancelled')
   }
 
   return list
@@ -103,11 +119,12 @@ function onRowClick(row: SalesOrder) {
         </TextField>
       </div>
 
+      <!-- Status Chips -->
       <div class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
         <button
           type="button"
           :class="[
-            'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors',
+            'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors shrink-0',
             activeFilter === 'all' ? 'bg-ink-navy text-white' : 'bg-stone-bg text-ink-muted hover:text-ink',
           ]"
           @click="activeFilter = 'all'"
@@ -118,7 +135,29 @@ function onRowClick(row: SalesOrder) {
         <button
           type="button"
           :class="[
-            'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors',
+            'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors shrink-0',
+            activeFilter === 'draft' ? 'bg-ink-navy text-white' : 'bg-stone-bg text-ink-muted hover:text-ink',
+          ]"
+          @click="activeFilter = 'draft'"
+        >
+          Draft
+        </button>
+
+        <button
+          type="button"
+          :class="[
+            'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors shrink-0',
+            activeFilter === 'to_deliver_and_bill' ? 'bg-ink-navy text-white' : 'bg-stone-bg text-ink-muted hover:text-ink',
+          ]"
+          @click="activeFilter = 'to_deliver_and_bill'"
+        >
+          To Deliver & Bill
+        </button>
+
+        <button
+          type="button"
+          :class="[
+            'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors shrink-0',
             activeFilter === 'to_deliver' ? 'bg-ink-navy text-white' : 'bg-stone-bg text-ink-muted hover:text-ink',
           ]"
           @click="activeFilter = 'to_deliver'"
@@ -129,7 +168,7 @@ function onRowClick(row: SalesOrder) {
         <button
           type="button"
           :class="[
-            'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors',
+            'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors shrink-0',
             activeFilter === 'to_bill' ? 'bg-ink-navy text-white' : 'bg-stone-bg text-ink-muted hover:text-ink',
           ]"
           @click="activeFilter = 'to_bill'"
@@ -140,12 +179,23 @@ function onRowClick(row: SalesOrder) {
         <button
           type="button"
           :class="[
-            'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors',
+            'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors shrink-0',
             activeFilter === 'completed' ? 'bg-ink-navy text-white' : 'bg-stone-bg text-ink-muted hover:text-ink',
           ]"
           @click="activeFilter = 'completed'"
         >
           Completed
+        </button>
+
+        <button
+          type="button"
+          :class="[
+            'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors shrink-0',
+            activeFilter === 'cancelled' ? 'bg-ink-navy text-white' : 'bg-stone-bg text-ink-muted hover:text-ink',
+          ]"
+          @click="activeFilter = 'cancelled'"
+        >
+          Cancelled
         </button>
       </div>
     </div>
@@ -184,7 +234,7 @@ function onRowClick(row: SalesOrder) {
 
       <template #status="{ value }">
         <Badge
-          :variant="value === 'Completed' ? 'success' : value.includes('Deliver') ? 'warning' : 'neutral'"
+          :variant="value === 'Completed' ? 'success' : value === 'Draft' ? 'neutral' : value === 'Cancelled' ? 'danger' : 'warning'"
           size="sm"
         >
           {{ value }}

@@ -59,16 +59,21 @@ export interface SalesApi {
   createCustomer(payload: Omit<Customer, 'id' | 'createdDate'>): Promise<ApiResult<Customer>>
   listQuotations(): Promise<ApiResult<Quotation[]>>
   createQuotation(payload: Omit<Quotation, 'id'>): Promise<ApiResult<Quotation>>
+  convertQuotationToSalesOrder(quotationId: string): Promise<ApiResult<SalesOrder>>
   listSalesOrders(): Promise<ApiResult<SalesOrder[]>>
   getSalesOrder(id: string): Promise<ApiResult<SalesOrder>>
   createSalesOrder(payload: Omit<SalesOrder, 'id' | 'stage' | 'status' | 'deliveryStatus' | 'billingStatus'>): Promise<ApiResult<SalesOrder>>
+  approveSalesOrder(id: string): Promise<ApiResult<SalesOrder>>
+  rejectSalesOrder(id: string, reason?: string): Promise<ApiResult<void>>
   listItems(): Promise<ApiResult<{ itemCode: string; itemName: string; rate: number; stockAvailable: number; warehouse: string }[]>>
+  createItem(payload: { itemCode: string; itemName?: string; rate?: number; isStockItem?: boolean; openingStock?: number; warehouse?: string }): Promise<ApiResult<{ itemCode: string; itemName: string; rate: number; stockAvailable: number; warehouse: string; isStockItem: boolean }>>
   createDelivery(salesOrderId: string): Promise<ApiResult<DeliveryNote>>
   listDeliveries(): Promise<ApiResult<DeliveryNote[]>>
-  createInvoiceFromOrder(salesOrderId: string): Promise<ApiResult<SalesInvoice>>
+  createInvoiceFromOrder(salesOrderId: string, updateStock?: boolean): Promise<ApiResult<SalesInvoice>>
   listSalesInvoices(): Promise<ApiResult<SalesInvoice[]>>
   getSalesInvoice(id: string): Promise<ApiResult<SalesInvoice>>
   listPayments(): Promise<ApiResult<Payment[]>>
+  recordAdvancePayment(orderId: string, amount: number, mode?: string, referenceNo?: string): Promise<ApiResult<Payment>>
   recordPayment(
     invoiceId: string,
     amount: number,
@@ -398,6 +403,33 @@ class MockSalesApi implements SalesApi {
     return { ok: true, data: newQuotation }
   }
 
+  async convertQuotationToSalesOrder(quotationId: string): Promise<ApiResult<SalesOrder>> {
+    await this.delay()
+    const quote = this.quotations.find((q) => q.id === quotationId)
+    if (!quote) return { ok: false, error: `Quotation ${quotationId} not found.` }
+    quote.status = 'Ordered'
+    const newOrder: SalesOrder = {
+      id: `SO-2026-${String(this.orders.length + 105).padStart(4, '0')}`,
+      customerName: quote.customerName,
+      customerId: quote.customerId,
+      orderDate: new Date().toISOString().split('T')[0],
+      deliveryDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+      items: [...quote.items],
+      subtotal: quote.subtotal,
+      taxAmount: quote.taxAmount,
+      grandTotal: quote.grandTotal,
+      stage: 'Sales Order',
+      status: 'Draft',
+      deliveryStatus: 'Not Delivered',
+      billingStatus: 'Not Billed',
+      quotationId: quote.id,
+      assignedTo: quote.createdBy,
+    }
+    this.orders.unshift(newOrder)
+    this.saveState()
+    return { ok: true, data: newOrder }
+  }
+
   async listSalesOrders(): Promise<ApiResult<SalesOrder[]>> {
     await this.delay()
     return { ok: true, data: [...this.orders] }
@@ -410,6 +442,25 @@ class MockSalesApi implements SalesApi {
     return { ok: true, data: { ...found } }
   }
 
+  async approveSalesOrder(id: string): Promise<ApiResult<SalesOrder>> {
+    await this.delay()
+    const order = this.orders.find((o) => o.id === id)
+    if (!order) return { ok: false, error: `Order ${id} not found.` }
+    order.status = 'To Deliver and Bill'
+    this.saveState()
+    return { ok: true, data: order }
+  }
+
+  async rejectSalesOrder(id: string, reason = 'Rejected by manager'): Promise<ApiResult<void>> {
+    await this.delay()
+    const idx = this.orders.findIndex((o) => o.id === id)
+    if (idx !== -1) {
+      this.orders[idx].status = 'Cancelled'
+      this.saveState()
+    }
+    return { ok: true }
+  }
+
   async createSalesOrder(
     payload: Omit<SalesOrder, 'id' | 'stage' | 'status' | 'deliveryStatus' | 'billingStatus'>
   ): Promise<ApiResult<SalesOrder>> {
@@ -418,7 +469,7 @@ class MockSalesApi implements SalesApi {
       ...payload,
       id: `SO-2026-${String(this.orders.length + 105).padStart(4, '0')}`,
       stage: 'Sales Order',
-      status: 'To Deliver and Bill',
+      status: 'Draft',
       deliveryStatus: 'Not Delivered',
       billingStatus: 'Not Billed',
       quotationId: payload.quotationId,
@@ -429,6 +480,45 @@ class MockSalesApi implements SalesApi {
     this.summary.pipelineCounts.orders++
     this.saveState()
     return { ok: true, data: newOrder }
+  }
+
+  async createItem(payload: { itemCode: string; itemName?: string; rate?: number; isStockItem?: boolean; openingStock?: number; warehouse?: string }): Promise<ApiResult<{ itemCode: string; itemName: string; rate: number; stockAvailable: number; warehouse: string; isStockItem: boolean }>> {
+    await this.delay()
+    return {
+      ok: true,
+      data: {
+        itemCode: payload.itemCode,
+        itemName: payload.itemName || payload.itemCode,
+        rate: payload.rate || 0,
+        isStockItem: payload.isStockItem !== false,
+        stockAvailable: payload.openingStock || 0,
+        warehouse: payload.warehouse || 'Stores',
+      },
+    }
+  }
+
+  async recordAdvancePayment(orderId: string, amount: number, mode = 'Bank Transfer', referenceNo?: string): Promise<ApiResult<Payment>> {
+    await this.delay()
+    const order = this.orders.find((o) => o.id === orderId)
+    if (!order) return { ok: false, error: `Order ${orderId} not found.` }
+    const pay: Payment = {
+      id: `PAY-2026-${String(this.payments.length + 301).padStart(4, '0')}`,
+      salesOrderId: orderId,
+      customerName: order.customerName,
+      amount,
+      date: new Date().toISOString().split('T')[0],
+      postingDate: new Date().toISOString().split('T')[0],
+      modeOfPayment: mode as any,
+      mode: mode as any,
+      referenceNo: referenceNo || `ADV-${Date.now()}`,
+      reconciled: true,
+      receivedBy: 'Accountant',
+    }
+    this.payments.unshift(pay)
+    order.advancePaymentId = pay.id
+    order.advancePaid = (order.advancePaid || 0) + amount
+    this.saveState()
+    return { ok: true, data: pay }
   }
 
   async createDelivery(salesOrderId: string): Promise<ApiResult<DeliveryNote>> {
@@ -920,10 +1010,12 @@ class FrappeSalesApi implements SalesApi {
         territory: payload.territory,
         customer_group: payload.group,
         notes: payload.notes,
+        customer_type: payload.customerType || 'Company',
+        address: payload.address,
       }),
     })
     if (!res.ok || !res.data) return { ok: false, error: res.error }
-    return { ok: true, data: mapCustomer(res.data) }
+    return { ok: true, data: mapCustomer(res.data.message || res.data) }
   }
 
   async listQuotations(): Promise<ApiResult<Quotation[]>> {
@@ -959,14 +1051,40 @@ class FrappeSalesApi implements SalesApi {
     const res = await frappeFetch<any>('/api/method/adadiko_hub.api.create_quotation', {
       method: 'POST',
       body: JSON.stringify({
-        customer: payload.customerId || payload.customerName,
+        party_name: payload.customerId || payload.customerName,
+        party_type: payload.partyType || 'Customer',
         valid_till: payload.validTill,
         items: docItems,
-        submit: false,
+        submit: payload.status === 'Submitted',
       }),
     })
     if (!res.ok || !res.data) return { ok: false, error: res.error }
-    return { ok: true, data: mapQuotation(res.data) }
+    return { ok: true, data: mapQuotation(res.data.message || res.data) }
+  }
+
+  async convertQuotationToSalesOrder(quotationId: string): Promise<ApiResult<SalesOrder>> {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.convert_quotation_to_sales_order', {
+      method: 'POST',
+      body: JSON.stringify({ quotation_id: quotationId }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: mapSalesOrder(res.data.message || res.data) }
+  }
+
+  async createItem(payload: { itemCode: string; itemName?: string; rate?: number; isStockItem?: boolean; openingStock?: number; warehouse?: string }): Promise<ApiResult<{ itemCode: string; itemName: string; rate: number; stockAvailable: number; warehouse: string; isStockItem: boolean }>> {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.create_item', {
+      method: 'POST',
+      body: JSON.stringify({
+        item_code: payload.itemCode,
+        item_name: payload.itemName,
+        rate: payload.rate || 0,
+        is_stock_item: payload.isStockItem !== false ? 1 : 0,
+        opening_stock: payload.openingStock || 0,
+        warehouse: payload.warehouse,
+      }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: res.data.message || res.data }
   }
 
   async listItems(): Promise<ApiResult<{ itemCode: string; itemName: string; rate: number; stockAvailable: number; warehouse: string }[]>> {
@@ -1015,10 +1133,18 @@ class FrappeSalesApi implements SalesApi {
       `/api/method/adadiko_hub.api.get_sales_order_details?sales_order_id=${encodeURIComponent(id)}`
     )
     if (res.ok && res.data) {
-      const order = mapSalesOrder(res.data)
-      if (res.data.invoice_id) order.invoiceId = res.data.invoice_id
-      if (res.data.delivery_note_id) order.deliveryNoteId = res.data.delivery_note_id
-      if (res.data.quotation_id) order.quotationId = res.data.quotation_id
+      const raw = res.data.message || res.data
+      const order = mapSalesOrder(raw)
+      if (raw.invoice_id) order.invoiceId = raw.invoice_id
+      if (raw.delivery_note_id) order.deliveryNoteId = raw.delivery_note_id
+      if (raw.quotation_id) order.quotationId = raw.quotation_id
+      if (raw.opportunity_id) order.opportunityId = raw.opportunity_id
+      if (raw.lead_id) order.leadId = raw.lead_id
+      if (raw.payment_id) order.paymentId = raw.payment_id
+      if (raw.advance_payment_id) order.advancePaymentId = raw.advance_payment_id
+      if (raw.advance_paid) order.advancePaid = raw.advance_paid
+      if (raw.has_stock_items !== undefined) order.hasStockItems = raw.has_stock_items
+      if (raw.all_non_stock !== undefined) order.allNonStock = raw.all_non_stock
       return { ok: true, data: order }
     }
 
@@ -1027,6 +1153,23 @@ class FrappeSalesApi implements SalesApi {
     return { ok: true, data: mapSalesOrder(fallbackRes.data) }
   }
 
+  async approveSalesOrder(id: string): Promise<ApiResult<SalesOrder>> {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.approve_sales_order', {
+      method: 'POST',
+      body: JSON.stringify({ order_id: id }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return this.getSalesOrder(id)
+  }
+
+  async rejectSalesOrder(id: string, reason = 'Rejected by manager'): Promise<ApiResult<void>> {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.reject_sales_order', {
+      method: 'POST',
+      body: JSON.stringify({ order_id: id, reason }),
+    })
+    if (!res.ok) return { ok: false, error: res.error }
+    return { ok: true }
+  }
 
   async createSalesOrder(
     payload: Omit<SalesOrder, 'id' | 'stage' | 'status' | 'deliveryStatus' | 'billingStatus'>
@@ -1037,12 +1180,12 @@ class FrappeSalesApi implements SalesApi {
         customer: payload.customerId || payload.customerName,
         delivery_date: payload.deliveryDate,
         items: payload.items,
-        submit: true,
+        submit: false,
         quotation_id: payload.quotationId,
       }),
     })
     if (!res.ok || !res.data) return { ok: false, error: res.error }
-    return { ok: true, data: mapSalesOrder(res.data) }
+    return { ok: true, data: mapSalesOrder(res.data.message || res.data) }
   }
 
   async createDelivery(salesOrderId: string): Promise<ApiResult<DeliveryNote>> {
@@ -1051,7 +1194,46 @@ class FrappeSalesApi implements SalesApi {
       body: JSON.stringify({ sales_order_id: salesOrderId }),
     })
     if (!res.ok || !res.data) return { ok: false, error: res.error }
-    return { ok: true, data: mapDeliveryNote(res.data) }
+    return { ok: true, data: mapDeliveryNote(res.data.message || res.data) }
+  }
+
+  async createInvoiceFromOrder(salesOrderId: string, updateStock = false): Promise<ApiResult<SalesInvoice>> {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.create_invoice_from_order', {
+      method: 'POST',
+      body: JSON.stringify({ sales_order_id: salesOrderId, update_stock: updateStock ? 1 : 0 }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    return { ok: true, data: mapSalesInvoice(res.data.message || res.data) }
+  }
+
+  async recordAdvancePayment(orderId: string, amount: number, mode = 'Bank Transfer', referenceNo?: string): Promise<ApiResult<Payment>> {
+    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.record_advance_payment_for_order', {
+      method: 'POST',
+      body: JSON.stringify({
+        sales_order_id: orderId,
+        amount,
+        mode,
+        reference_no: referenceNo,
+      }),
+    })
+    if (!res.ok || !res.data) return { ok: false, error: res.error }
+    const pe = res.data.message || res.data
+    return {
+      ok: true,
+      data: {
+        id: pe.name,
+        salesOrderId: orderId,
+        customerName: pe.party_name || pe.party || 'Customer',
+        amount: Number(pe.paid_amount || amount),
+        date: pe.posting_date || new Date().toISOString().split('T')[0],
+        postingDate: pe.posting_date || new Date().toISOString().split('T')[0],
+        modeOfPayment: (pe.mode_of_payment || mode) as any,
+        mode: (pe.mode_of_payment || mode) as any,
+        referenceNo: pe.reference_no || '',
+        reconciled: true,
+        receivedBy: pe.owner || 'Accountant',
+      },
+    }
   }
 
   async listDeliveries(): Promise<ApiResult<DeliveryNote[]>> {
@@ -1078,15 +1260,6 @@ class FrappeSalesApi implements SalesApi {
     )
     if (!res.ok || !res.data) return { ok: false, error: res.error }
     return { ok: true, data: res.data.map(mapDeliveryNote) }
-  }
-
-  async createInvoiceFromOrder(salesOrderId: string): Promise<ApiResult<SalesInvoice>> {
-    const res = await frappeFetch<any>('/api/method/adadiko_hub.api.create_invoice_from_order', {
-      method: 'POST',
-      body: JSON.stringify({ sales_order_id: salesOrderId }),
-    })
-    if (!res.ok || !res.data) return { ok: false, error: res.error }
-    return { ok: true, data: mapSalesInvoice(res.data) }
   }
 
   async listSalesInvoices(): Promise<ApiResult<SalesInvoice[]>> {

@@ -62,19 +62,8 @@ const filteredQuotations = computed(() => {
 })
 
 async function convertToOrder(quote: Quotation) {
-  // Convert quotation into new sales order
-  const res = await salesApi.createSalesOrder({
-    customerName: quote.customerName,
-    customerId: quote.customerId,
-    orderDate: new Date().toISOString().split('T')[0],
-    deliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    items: [...quote.items],
-    subtotal: quote.subtotal,
-    taxAmount: quote.taxAmount,
-    grandTotal: quote.grandTotal,
-    quotationId: quote.id,
-    assignedTo: quote.createdBy,
-  })
+  // Convert quotation into new sales order using ERPNext standard method
+  const res = await salesApi.convertQuotationToSalesOrder(quote.id)
 
   if (res.ok && res.data) {
     quote.status = 'Ordered'
